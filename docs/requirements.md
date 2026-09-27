@@ -24,7 +24,7 @@ The base user can:
 
 ### Admin User
 - Everything the base user can do
-- Access `/customize`
+- Access `/customize` (desktop-only)
 - Add, remove, and view memories
 - Add, remove and view photos or videos
 - Customize memories
@@ -51,10 +51,10 @@ Buttons idea to implement:
 - Data storage: flat JSON file, in-memory write queue, Zod validation on all reads/writes for type safety. Media is handled with local storage. Sharp for image processing
 - Infra: Docker
 - Authentication: App-generated pseudorandom string, 20 characters long, as the single shared secret. On correct entry, a cookie is set that keeps the session persistently logged in (no repeated re-entry). Cooked managed with `iron-session` session library.
-- App structure: `/customize` for admin/editing route and `/` for the main flow for the end user (partner)
+- App structure: `/customize` for admin/editing route (desktop-only) and `/` for the main flow for the end user (partner)
 
 ## Non-functional requirements
-**Responsiveness**: equally optimized for mobile and desktop. Layour and interactions must work well with both touch and pointer input.
+**Responsiveness**: equally optimized for mobile and desktop for the main flow (`/`) and login, where layout and interactions must work well with both touch and pointer input. The `/customize` admin dashboard is explicitly desktop-only (>=1024px). Accessing `/customize` on mobile displays a polite notice requesting the user to open the dashboard on a desktop device.
 
 **Accessibility**:
 - For learning purposes, i'm treating this project as a real product, so i'll add semantic HTML, keyboard navigation and sufficinet contrast. I'll skip screen-reader support.

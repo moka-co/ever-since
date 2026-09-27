@@ -57,12 +57,17 @@
   - On 5 consecutive failed attempts, locks out further tries per IP/session.
   - Instead of a sterile error code, displays a playful cooldown screen: *"Don't talk to me for [MM:SS]..."* alongside an active real-time countdown timer before retrying is allowed.
 
+### Date-Entry Screen (Story Initiation)
+- **Concept**: Occurs immediately after successful authentication to kick off the memory timeline.
+- **Visuals & Layout**: Near-identical aesthetic to the login screen, preserving the emotional, full-screen romantic framing (e.g., "The day our story began...").
+- **Input & Submission**: A minimalist date input matching the login field styling. Submitting a valid date initiates the transition into the linear memory flow.
+
 ### Main Memory Flow & Navigation
 - **Structure**: A linear, swipeable flow where only **1 modern card is viewed at a time**.
 - **Media Presentation**:
   - Cards feature soft rounded corners (avoiding outdated Polaroid borders).
   - Media uses `object-fit: contain` inside the card frame, surrounded by a soft, ambient blurred or pastel-tinted backdrop container. This prevents unwanted cropping of mixed portrait and landscape photos/videos.
-  - A subtle card stack peek or soft edge shadow on the right indicates upcoming memories.
+  - A subtle card stack peek or soft edge shadow on the right indicates upcoming memories, explicitly showing nothing recognizable (strictly neutral shadow/edge with no thumbnail bleed) to preserve the sequential surprise.
 - **Progress Indicator**:
   - A subtle, minimal series of faint dot indicators positioned unobtrusively at the top or bottom of the screen, providing orientation without distracting from the narrative.
 - **Navigation Controls**:
@@ -70,7 +75,11 @@
   - Subtle left and right navigation arrows positioned along the viewport edges for desktop pointer fallback.
 - **Rewind Control**:
   - An unobtrusive "Rewind" button anchored at the bottom of the screen.
-  - **Interaction**: A 1.5-second press-and-hold interaction featuring a smooth circular/radial fill animation. This prevents accidental taps while avoiding disruptive modal dialogs that break the romantic atmosphere.
+  - **Pointer & Touch Interaction**: A 1.5-second press-and-hold interaction with a circular/radial fill animation.
+  - **Keyboard Interaction**: Pressing and holding `Enter` or `Space` on the focused Rewind button for 1.5 seconds triggers the identical radial fill and executes the rewind upon completion.
+- **Empty State (Main Flow)**:
+  - When no memories have been published yet, renders a minimal, romantic placeholder card: *"Our memories are still being written... Check back soon!"*
+  - Status: [TO REFINE: Placeholder illustration and custom copy]
 
 ### Interactive "Fun" Buttons
 - **Concept**: Playful buttons inserted into specific memories to surprise the partner (e.g., a pixel seal making squeaking noises, sound bites, or a dodging Yes/No prompt).
@@ -79,14 +88,23 @@
   - On touch devices (where pointer hover does not exist), tapping "No" does not jump across the screen. Instead, each tap shrinks the "No" button while progressively scaling up the "Yes" button. After a fixed number of attempts, "No" disappears entirely, leaving only "Yes" spanning the full interaction area.
 - **Desktop Pointer Interaction**:
   - Standard runaway movement where "No" shifts position on pointer proximity or hover, eventually disappearing after repeated evasions.
+- **Keyboard Interaction**:
+  - Tab navigates between interactive options. Pressing `Enter` on a focused "No" triggers the shrinking "No" and growing "Yes" progression. The user can also Tab directly to "Yes" and press `Enter` to confirm.
 
 ### Admin Dashboard (`/customize`)
 - **Platform Constraint**: **Explicitly Desktop-Only** (viewport width >= 1024px). Accessing `/customize` on mobile displays a clear, polite notice requesting the user open the dashboard on a computer.
 - **Visuals**: **Purely functional and utilitarian**. High contrast, clean tables/lists, and crisp controls optimized for upload speed, sorting, and clarity.
-- **Media Management**: Direct multipart file upload zone with clear quota badges (e.g., "12 / 20 memories used") and file size feedback.
-- **Reordering**: Drag-and-drop memory reordering designed specifically for mouse interactions.
+- **Media Management & Error Feedback**:
+  - Direct multipart file upload zone with clear quota badges (e.g., "12 / 20 media files used") and file size feedback, clarifying that the 20-item cap applies to uploaded media assets rather than total memories.
+  - **Inline Error & Retry Feedback**: If a media upload or database write fails, an inline error notification is displayed directly on the affected item or upload dropzone (e.g., *"Upload failed: File exceeds limit or network dropped • [Retry]"*). This ensures the admin can catch and fix issues before sharing the site, while end-user flows remain quiet.
+- **Reordering**:
+  - Drag-and-drop memory reordering designed for mouse interactions.
+  - **Keyboard Reordering Fallback**: Up and Down arrow buttons placed adjacent to the drag handles on each row, allowing keyboard-only users to reorder items using Tab and Enter/Space.
 - **Button Authoring**:
   - Admins select fun buttons from a dropdown populated by the fixed component registry, rendering a straightforward form to configure button options.
+- **Empty State (Admin Dashboard)**:
+  - Displays a clean, dashed dropzone with a clear prompt: *"No memories yet. Upload your first photo or video above to begin building the timeline."*
+  - Status: [TO REFINE: Onboarding guidance and empty state layout]
 
 ## Resources
 

@@ -46,7 +46,7 @@ Hard constraints:
 - 20 media files, no new upload allowed without deleting some files first.
 - Max upload size 10MB
 
-Media upload failures silently fail and are logged server-side.
+Media upload and write failures silently fail for the base user (partner) and are logged server-side. For the admin user in `/customize`, the API returns an error response with details to power an inline error and retry affordance.
 
 
 ### Buttons - fixed registry of buttons
