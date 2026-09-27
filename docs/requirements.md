@@ -14,6 +14,8 @@ In practice for technical simplicity, the base user is also the admin user. Two 
 ### Base User
 The base user can:
 - Insert a password given by the admin user -> this completes the log in
+- In case of incorrect password attempts, receive escalating playful feedback (up to 5 attempts)
+- If locked out after 5 failed attempts, view a dedicated playful lockout screen with an active cooldown countdown timer before being allowed to retry
 - Reload the page or close the page and still be logged in for 72 hours (from the login).
 - Insert the date to start the main flow
 - Experience the main flow, including interacting with items and view every memory.
@@ -59,7 +61,7 @@ Buttons idea to implement:
 - Custom interactions like dodging yes/no button need non-mouse-dependent fallbacks.
 - Alt-text isn't required
 
-**Security**: basic rate limiting on `/login`, lock out after 5 failed attempts, cooldown, per-IP and session.
+**Security**: basic rate limiting on `/login`, lock out after 5 failed attempts, cooldown, per-IP and session. When locked out, the client transitions to the playful cooldown/lockout screen displaying a real-time countdown timer before retrying is allowed.
 
 **Reliability**: if a write to `db.json` failes, fail silently to the end user but log the error server-side for later review. Ideally since the admin user also checks the entire flow, it should catch up any errors before showing it to the other user. 
 

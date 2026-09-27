@@ -5,6 +5,10 @@
 - `media/` refers to the local filesystem
 - Docker: standard DOCKERFILE with multi-stage build (deps -> build -> runtime) and two volumes on `data/` and `media/`. A stdout captured by docker logs any errors.
 
+**Tools**
+- A linter for scanning code: Oxlint
+- 
+
 **Storage Layer**:
 - `lib/storage`
     - db.ts -> readDb(), writeDb(updater)
@@ -22,7 +26,11 @@
 3. Middleware checks the session on every request to `/`, `/customize/*` and API routes and redirected to `/login` if missing/expired
 
 Session TTL:72 hours from login, checked server-side, but only for the lifetime of the running process. If you stop the container or the app, the session get invalidated and everyone is logged out.
-Basic rate limiting on `/login` per IP and session, with N maximum retries.
+
+Rate limiting & lockout on `/login`:
+- Rate limiting tracks failed attempts per IP and session (max 5 retries).
+- On 401 (failed attempt < 5), API returns remaining attempts count (`attemptsLeft`) to drive escalating playful UI feedback.
+- On 5th failed attempt, API enters lockout state and returns HTTP 429 with `retryAfter` (cooldown duration in seconds), triggering the frontend lockout screen with active real-time countdown. Subsequent requests during cooldown are rejected with HTTP 429 until the timer expires.
 
 The 20-char secret live in a .env file that is generated (or updated) on backend startup. Each time a new one is generated so the old one become useless, no need to delete it. The `iron-session` encryption key is the same secret that regenerates on startup.
 
