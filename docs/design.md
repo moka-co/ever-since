@@ -61,17 +61,22 @@
 - **Concept**: Occurs immediately after successful authentication to kick off the memory timeline.
 - **Visuals & Layout**: Near-identical aesthetic to the login screen, preserving the emotional, full-screen romantic framing (e.g., "The day our story began...").
 - **Input & Submission**: A minimalist date input matching the login field styling. Submitting a valid date initiates the transition into the linear memory flow.
+- **Autofocus & Mobile Keyboards**: 
+  - Autofocus the first input field on load to reduce interaction friction.
+  - For segmented date fields (`DD / MM / YYYY`), automatically advance focus to the next field as digits are entered (auto-advancing from `DD` to `MM` to `YYYY`).
+  - Set `inputmode="numeric"` and `pattern="[0-9]*"` across date inputs to invoke dedicated mobile numeric keyboards automatically.
 
 ### Main Memory Flow & Navigation
 - **Structure**: A linear, swipeable flow where only **1 modern card is viewed at a time**.
 - **Media Presentation**:
   - Cards feature soft rounded corners (avoiding outdated Polaroid borders).
-  - Media uses `object-fit: contain` inside the card frame, surrounded by a soft, ambient blurred or pastel-tinted backdrop container. This prevents unwanted cropping of mixed portrait and landscape photos/videos.
+  - If the card container is a fixed square/rectangle, apply `object-fit: contain` with a soft ambient blurred background or pastel fill behind the photo to avoid awkward cropping of heads or borders.
   - A subtle card stack peek or soft edge shadow on the right indicates upcoming memories, explicitly showing nothing recognizable (strictly neutral shadow/edge with no thumbnail bleed) to preserve the sequential surprise.
 - **Progress Indicator**:
   - A subtle, minimal series of faint dot indicators positioned unobtrusively at the top or bottom of the screen, providing orientation without distracting from the narrative.
+  - Utilizes dynamic sliding dots (similar to Instagram/iOS carousels), where the active dot is larger and only ~5–7 dots are shown at a time with subtle shrinking on the edges.
 - **Navigation Controls**:
-  - Touch-based horizontal swipe gestures for mobile.
+  - Touch-based horizontal swipe gestures for mobile: On mobile, make sure the entire card responds naturally to horizontal swipe gestures so users don't have to precisely tap small circular arrows.
   - Subtle left and right navigation arrows positioned along the viewport edges for desktop pointer fallback.
 - **Rewind Control**:
   - An unobtrusive "Rewind" button anchored at the bottom of the screen.
@@ -122,3 +127,10 @@
   - https://github.com/ivysone/Will-you-be-my-Valentine-
   - https://aayushgoel.dev/will-you-be-my-valentine/
   - https://github.com/ravikantmahi/Be-My-Valentine
+
+
+
+## Figma prototype
+
+- **Main flow - memories** on page 1 ->https://www.figma.com/design/RTCRnh6OiuRNrSxkpjFWZg/Untitled?node-id=0-1&m=dev&t=lWgPGJBU2ph7qnsE-1
+- 
