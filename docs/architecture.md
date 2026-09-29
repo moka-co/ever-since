@@ -10,9 +10,9 @@
 - 
 
 **Storage Layer**:
-- `lib/storage`
-    - db.ts -> readDb(), writeDb(updater)
-    - queue.ts -> serializes writes
+- `lib/`
+    - `schema.ts` -> contains the schema for the database
+    - `storage/queue.ts` -> serializes writes
 
 ### App startup
 1. The App backend is start up e.g. with docker
@@ -59,4 +59,24 @@ Data is managed on local file system, deleting the photos would be the best thin
 Assumptions: you don't point directly your entire album in the media folder and you already have other backup solutions.
 
 Backup of `db.json` is out of scope given the short lifespan of the app.
+
+### API Specification
+
+| Method | Endpoint | Access | Purpose |
+|---|---|---|---|
+| `POST` | `/api/auth/login` | Public (Rate-limited) | Authenticate with 20-char secret & set session cookie |
+| `POST` | `/api/auth/logout` | Authenticated | Clear session cookie |
+| `GET` | `/api/auth/session` | Public | Inspect session state & lockout countdown |
+| `GET` | `/api/config` | Authenticated | Fetch anniversary date & story settings |
+| `PUT` | `/api/config` | Authenticated | Update anniversary date |
+| `GET` | `/api/memories` | Authenticated | Fetch ordered memories for timeline |
+| `POST` | `/api/memories` | Authenticated | Add a new memory item |
+| `PUT` | `/api/memories/[id]` | Authenticated | Update an existing memory |
+| `DELETE` | `/api/memories/[id]` | Authenticated | Delete a memory item |
+| `PUT` | `/api/memories/reorder` | Authenticated | Reorder memories after drag & drop |
+| `GET` | `/api/media` | Authenticated | List media & inspect 20-file quota |
+| `POST` | `/api/media` | Authenticated | Upload photo/video (max 10MB, Sharp processed) |
+| `DELETE` | `/api/media/[id]` | Authenticated | Delete media file and reclaim quota |
+| `GET` | `/api/media/[filename]` | Authenticated | Serve media binary directly from disk |
+
 
