@@ -5,6 +5,39 @@
 - `media/` refers to the local filesystem
 - Docker: standard DOCKERFILE with multi-stage build (deps -> build -> runtime) and two volumes on `data/` and `media/`. A stdout captured by docker logs any errors.
 
+### Repository Map
+```
+ever-since/
+├── .env
+├── .gitignore
+├── AGENTS.MD
+├── LICENSE
+├── README.md
+├── docs/
+│   ├── architecture.md
+│   ├── design.md
+│   ├── init.md
+│   └── requirements.md
+├── tests/
+└── ever-since/                # Next.js Application
+    ├── .gitignore
+    ├── eslint.config.mjs
+    ├── next.config.ts
+    ├── next-env.d.ts
+    ├── package.json
+    ├── postcss.config.mjs
+    ├── README.md
+    ├── tsconfig.json
+    ├── app/
+    │   ├── favicon.ico
+    │   ├── globals.css
+    │   ├── layout.tsx
+    │   └── page.tsx
+    ├── lib/
+    │   └── storage/
+    │       └── schema.ts
+```
+
 **Tools**
 - A linter for scanning code: Oxlint
 - 
