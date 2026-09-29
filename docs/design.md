@@ -132,5 +132,5 @@
 
 ## Figma prototype
 
-- **Main flow - memories** on page 1 ->https://www.figma.com/design/RTCRnh6OiuRNrSxkpjFWZg/Untitled?node-id=0-1&m=dev&t=lWgPGJBU2ph7qnsE-1
+- Grayscale prototype UI/UX only, ignore aesthetics: https://www.figma.com/design/RTCRnh6OiuRNrSxkpjFWZg/Untitled?node-id=0-1&m=dev&t=lWgPGJBU2ph7qnsE-1
 - 

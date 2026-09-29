@@ -9,6 +9,6 @@ EverSince we met, a romantic web experience made for couples recurrences like an
 
 ## Topic Docs
 - Project Requirements `docs/requirements.md` - required to understand the requirements for the project
-- Architecture and technical requirements `docs/architecture.md`
+- Architecture and technical requirements, APIs map `docs/architecture.md`
 - Initialization `docs/init.md`
 - Design, UI, UX, typography, colors, aesthetic - `docs/design.md`
