@@ -29,6 +29,19 @@ ever-since/
     ├── README.md
     ├── tsconfig.json
     ├── app/
+    │   ├── api/
+    │   │   ├── auth/
+    │   │   │   ├── login/route.ts
+    │   │   │   ├── logout/route.ts
+    │   │   │   └── session/route.ts
+    │   │   ├── config/route.ts
+    │   │   ├── media/
+    │   │   │   ├── [id]/route.ts
+    │   │   │   └── route.ts
+    │   │   └── memories/
+    │   │       ├── [id]/route.ts
+    │   │       ├── reorder/route.ts
+    │   │       └── route.ts
     │   ├── favicon.ico
     │   ├── globals.css
     │   ├── layout.tsx

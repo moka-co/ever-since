@@ -27,6 +27,7 @@ export type MediaRecord = z.infer<typeof mediaRecordSchema>;
 
 //Complete database schema
 export const dbSchema = z.object({
+  secret: z.object(secretSchema),
   config: z.object({
     anniversaryDate: z.string().date()
   }),
