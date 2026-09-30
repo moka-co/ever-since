@@ -76,3 +76,16 @@ export async function saveAuthenticatedSession(): Promise<void> {
   session.loginAt = Date.now();
   await session.save();
 }
+
+/**
+ * Removes the authenticated session cookie.
+ */
+export async function clearAuthenticatedSession(): Promise<void> {
+  try {
+    const session = await getSession();
+    session.destroy();
+  } catch {
+    const cookieStore = await cookies();
+    cookieStore.delete(SESSION_COOKIE_NAME);
+  }
+}

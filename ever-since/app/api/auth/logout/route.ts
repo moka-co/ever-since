@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { clearAuthenticatedSession } from '@/lib/auth/session';
 
 /**
  * POST /api/auth/logout
@@ -6,8 +7,10 @@ import { NextResponse } from 'next/server';
  * Clear session cookie
  */
 export async function POST() {
+  await clearAuthenticatedSession();
+
   return NextResponse.json(
-    { message: 'Mock: logout endpoint', authenticated: false },
+    { authenticated: false },
     { status: 200 }
   );
 }
