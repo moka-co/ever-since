@@ -6,6 +6,8 @@ export const secretSchema = z.object(
         value: z.string().length(20)
     }
 )
+export type SecretRecord = z.infer<typeof secretSchema>;
+
 //Represent a memory 
 //NOTE: this is the basic minimum memory, later other elements may be added
 export const memorySchema = z.object({
@@ -27,9 +29,9 @@ export type MediaRecord = z.infer<typeof mediaRecordSchema>;
 
 //Complete database schema
 export const dbSchema = z.object({
-  secret: z.object(secretSchema),
+  secret: secretSchema,
   config: z.object({
-    anniversaryDate: z.string().date()
+    anniversaryDate: z.string().date().or(z.literal(''))
   }),
   memories: z.array(memorySchema),
   media: z.array(mediaRecordSchema).max(20, "Cannot exceed 20 media files")

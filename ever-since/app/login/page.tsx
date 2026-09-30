@@ -1,4 +1,9 @@
-export default function LoginPage() {
+import LoginForm from './login-form';
+import { isSessionAuthenticated } from '@/lib/auth/session';
+
+export default async function LoginPage() {
+  const authenticated = await isSessionAuthenticated();
+
   return (
     <main className="min-h-screen flex flex-col items-center justify-center gap-12 text-center">
       {/* 1. Upper Section: Password Authentication ("Insert password / ask your nerd") */}
@@ -11,42 +16,7 @@ export default function LoginPage() {
           <p>Ask your nerd for the 20-character secret</p>
         </header>
 
-        <form
-          action="/api/auth/login"
-          method="POST"
-          className="flex flex-col items-center justify-center gap-3"
-        >
-          <label htmlFor="secret-input" className="sr-only">
-            20-character shared secret
-          </label>
-          <input
-            id="secret-input"
-            type="password"
-            name="password"
-            placeholder="Insert password..."
-            minLength={20}
-            maxLength={20}
-            autoFocus
-            required
-          />
-          <button type="submit">Log in</button>
-        </form>
-
-        {/* Failure States & Escalating Feedback (Up to 5 Attempts) */}
-        <div
-          role="status"
-          aria-live="polite"
-          className="flex flex-col items-center justify-center gap-1"
-        >
-          {/* Attempts 1–2: Gentle input shake with a warm retry prompt */}
-          <p hidden>Almost! Ask your nerd and try again.</p>
-          {/* Attempt 3: Playful pleading copy */}
-          <p hidden>I&apos;m crying, 3 tries left</p>
-          {/* Attempt 4: Playful urgency copy */}
-          <p hidden>Why do you hate me, 2 tries left</p>
-          {/* Attempt 5: Final warning copy */}
-          <p hidden>You&apos;re almost single, 1 try left</p>
-        </div>
+        <LoginForm initialAuthenticated={authenticated} />
 
         {/* Lockout Screen (Cooldown Period after 5 consecutive failed attempts) */}
         <div
