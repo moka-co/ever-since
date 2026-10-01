@@ -11,14 +11,14 @@ const origRequire = (Module.prototype as any).require;
 };
 
 async function main() {
-  const { middleware } = await import('../middleware');
+  const { proxy } = await import('../proxy');
   const { NextRequest } = await import('next/server');
   const { sealData } = await import('iron-session');
   const { createHash } = await import('node:crypto');
   const { dbClient } = await import('../lib/storage/db');
   const { SESSION_COOKIE_NAME, SESSION_TTL_SECONDS } = await import('../lib/auth/session');
 
-  console.log('--- Starting Middleware Verification ---');
+  console.log('--- Starting Proxy Verification ---');
   let failures = 0;
 
   function assert(condition: boolean, msg: string) {
@@ -34,7 +34,7 @@ async function main() {
   const publicRoutes = ['/api/auth/login', '/api/auth/session', '/api/auth/logout'];
   for (const path of publicRoutes) {
     const req = new NextRequest(new URL(`http://localhost:3000${path}`));
-    const res = await middleware(req);
+    const res = await proxy(req);
     assert(
       res.status === 200 && !res.headers.get('location'),
       `Public route ${path} allows request through (status 200, no redirect)`
@@ -53,7 +53,7 @@ async function main() {
 
   for (const path of protectedApiRoutes) {
     const req = new NextRequest(new URL(`http://localhost:3000${path}`));
-    const res = await middleware(req);
+    const res = await proxy(req);
     assert(
       res.status === 401,
       `Protected API ${path} returns 401 without auth (got ${res.status})`
@@ -69,7 +69,7 @@ async function main() {
   const pageRoutes = ['/', '/customize', '/customize/photos'];
   for (const path of pageRoutes) {
     const req = new NextRequest(new URL(`http://localhost:3000${path}`));
-    const res = await middleware(req);
+    const res = await proxy(req);
     assert(
       res.status === 307,
       `Page route ${path} returns 307 redirect without auth (got ${res.status})`
@@ -95,7 +95,7 @@ async function main() {
         cookie: `${SESSION_COOKIE_NAME}=${validCookie}`,
       },
     });
-    const res = await middleware(req);
+    const res = await proxy(req);
     assert(
       res.status === 200 && !res.headers.get('location'),
       `Authenticated request to ${path} allows request through (status 200)`
@@ -113,7 +113,7 @@ async function main() {
       cookie: `${SESSION_COOKIE_NAME}=${expiredCookie}`,
     },
   });
-  const expiredApiRes = await middleware(expiredApiReq);
+  const expiredApiRes = await proxy(expiredApiReq);
   assert(
     expiredApiRes.status === 401,
     `Expired session on /api/config returns 401 (got ${expiredApiRes.status})`
@@ -129,7 +129,7 @@ async function main() {
       cookie: `${SESSION_COOKIE_NAME}=${expiredCookie}`,
     },
   });
-  const expiredPageRes = await middleware(expiredPageReq);
+  const expiredPageRes = await proxy(expiredPageReq);
   assert(
     expiredPageRes.status === 307 && expiredPageRes.headers.get('location')?.endsWith('/login') === true,
     `Expired session on / redirects to /login`

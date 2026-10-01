@@ -29,6 +29,7 @@ ever-since/
     ├── postcss.config.mjs
     ├── README.md
     ├── tsconfig.json
+    ├── proxy.ts
     ├── app/
     │   ├── api/
     │   │   ├── auth/
@@ -83,7 +84,7 @@ ever-since/
 ### Authentication flow
 1. `/login` posts password
 2. API route compares against env-stored 20-char secret (additional requirements: constant time compare)
-3. Middleware checks the session on every request: unauthenticated requests to `/` and `/customize/*` are redirected to `/login`; unauthenticated requests to protected API routes return HTTP 401 with `{ error: 'not authenticated' }` (`/api/auth/login`, `/api/auth/session`, and `/api/auth/logout` remain public)
+3. Proxy (`proxy.ts`, formerly `middleware.ts` per Next.js 16+ convention) checks the session on every request: unauthenticated requests to `/` and `/customize/*` are redirected to `/login`; unauthenticated requests to protected API routes return HTTP 401 with `{ error: 'not authenticated' }` (`/api/auth/login`, `/api/auth/session`, and `/api/auth/logout` remain public)
 
 Session TTL:72 hours from login, checked server-side, but only for the lifetime of the running process. If you stop the container or the app, the session get invalidated and everyone is logged out.
 

@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/auth/session';
 
-export const runtime = 'nodejs';
 
 // Public API endpoints that do not require authentication
 const PUBLIC_API_PATHS = new Set([
@@ -11,7 +10,7 @@ const PUBLIC_API_PATHS = new Set([
 ]);
 
 /**
- * Middleware responsible for verifying the iron-session cookie on requests to:
+ * Proxy (Next.js 16+ convention) responsible for verifying the iron-session cookie on requests to:
  * - "/" (main flow)
  * - "/customize/*" (admin dashboard)
  * - Protected API routes ("/api/*")
@@ -20,7 +19,7 @@ const PUBLIC_API_PATHS = new Set([
  * - Returned as JSON { error: "not authenticated" } (401) for API routes
  * - Redirected to "/login" for page routes
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const normalizedPath = pathname.endsWith('/') && pathname.length > 1
     ? pathname.slice(0, -1)
@@ -47,6 +46,9 @@ export async function middleware(request: NextRequest) {
 
   return NextResponse.next();
 }
+
+// Backward-compatibility alias for tests
+export { proxy as middleware };
 
 export const config = {
   matcher: ['/', '/customize/:path*', '/api/:path*'],
