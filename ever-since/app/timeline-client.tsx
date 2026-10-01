@@ -38,7 +38,8 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
     }
   };
 
-  const handlePointerDown = () => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
     setIsRewinding(true);
     rewindTimeout.current = setTimeout(() => {
       setCurrentIndex(0);
@@ -46,7 +47,10 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
     }, 1500);
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
     if (rewindTimeout.current) clearTimeout(rewindTimeout.current);
     setIsRewinding(false);
   };
@@ -146,9 +150,10 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
               </AnimatePresence>
             </div>
 
-            <footer className="mt-3 relative w-8 h-8 rounded-full bg-[#F3F4F6] border border-[#E5E7EB] shadow-xs flex items-center justify-center overflow-hidden z-10">
+            <footer className="mt-3 relative w-10 h-10 rounded-full bg-white border border-[#E5E7EB] shadow-xs flex items-center justify-center overflow-hidden z-10 group">
+              {/* Radial Fill Animation */}
               <motion.div
-                className="absolute inset-0 bg-[#E5E7EB] origin-center"
+                className="absolute inset-0 bg-[#DB2777] rounded-full origin-center"
                 initial={{ scale: 0 }}
                 animate={{ scale: isRewinding ? 1 : 0 }}
                 transition={{ duration: isRewinding ? 1.5 : 0.2, ease: "linear" }}
@@ -158,10 +163,15 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
                 aria-label="Rewind to beginning"
                 onPointerDown={handlePointerDown}
                 onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
                 onPointerLeave={handlePointerUp}
-                className="relative z-10 w-full h-full text-[#6B7280] hover:text-foreground flex items-center justify-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta rounded-full"
+                onContextMenu={(e) => e.preventDefault()}
+                style={{ touchAction: 'none' }}
+                className={`relative z-10 w-full h-full flex items-center justify-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta rounded-full select-none ${
+                  isRewinding ? 'text-white' : 'text-[#6B7280] hover:text-foreground'
+                }`}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
                 <span className="sr-only">Rewind</span>
               </button>
             </footer>
