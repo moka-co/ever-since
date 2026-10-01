@@ -53,8 +53,9 @@
 
 ### Components & Motion
 - **Component Geometry & Shadows**:
-  - Soft rounded corners (e.g., `rounded-2xl` to `rounded-3xl` / `rounded-[32px]`) and generous touch targets (minimum 44x44px).
-  - **Card Shadows (Required)**: All cards across the application (including the login card, date-entry card, and memory flow cards) require a subtle drop shadow (e.g., `shadow-sm` or `shadow-md`) alongside their border to ensure clean visual separation, depth, and contrast against the pastel gradient background.
+  - **Mandatory Rounded Corners**: All cards across the application (including login, date-entry, admin dashboard, and memory flow cards) must have round corners (e.g., `rounded-2xl` for admin/login cards and `rounded-3xl` / `rounded-[32px]` for memory cards). Sharp right-angled edges are strictly prohibited.
+  - **Card Shadows (Required)**: All cards across the application require a subtle drop shadow (e.g., `shadow-sm` or `shadow-md`) alongside their border to ensure clean visual separation, depth, and contrast against the pastel gradient background.
+  - Generous touch targets (minimum 44x44px).
 - **Motion & Reduced Motion (`prefers-reduced-motion`)**:
   - Default: Subtle bouncy transitions, card slide gestures, and interactive spring physics.
   - When reduced motion is preferred: Bouncy and slide animations are replaced with gentle 150ms crossfades; dynamic runaway button movement is disabled in favor of static, accessible progression.
@@ -85,10 +86,10 @@
 
 ### Main Memory Flow & Navigation
 - **Structure**: A linear, swipeable flow where only **1 modern card is viewed at a time**.
-- **Media Presentation**:
-  - Cards feature soft rounded corners (avoiding outdated Polaroid borders) and a required subtle drop shadow (`shadow-xs` / `shadow-sm`) to stand out cleanly from the canvas.
+- **Media Presentation & Stack Cue**:
+  - **Mandatory Round Corners**: Cards must feature soft, pronounced round corners (specifically `rounded-3xl` / `rounded-[32px]`, avoiding outdated Polaroid borders) and a required subtle drop shadow (`shadow-xs` / `shadow-sm`) to stand out cleanly from the canvas.
+  - **Stacked Card as Visual Clue**: In the `"/"` main flow, the card positioned beneath and offset slightly to the right of the active card serves as a vital visual clue to signal to the user that there are more cards ahead in the story. To preserve sequential surprise, this peeked card edge shows strictly a neutral outline and subtle shadow with no recognizable thumbnail bleed.
   - If the card container is a fixed square/rectangle, apply `object-fit: contain` with a soft ambient blurred background or pastel fill behind the photo to avoid awkward cropping of heads or borders.
-  - A subtle card stack peek or soft edge shadow on the right indicates upcoming memories, explicitly showing nothing recognizable (strictly neutral shadow/edge with no thumbnail bleed) to preserve the sequential surprise.
 - **Progress Indicator**:
   - A subtle, minimal series of faint dot indicators positioned unobtrusively at the top or bottom of the screen, providing orientation without distracting from the narrative.
   - Utilizes dynamic sliding dots (similar to Instagram/iOS carousels), where the active dot is larger and only ~5–7 dots are shown at a time with subtle shrinking on the edges.
