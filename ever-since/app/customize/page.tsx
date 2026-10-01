@@ -1,13 +1,6 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
-import { isSessionAuthenticated } from '@/lib/auth/session';
 
-export default async function CustomizePage() {
-  const authenticated = await isSessionAuthenticated();
-
-  if (!authenticated) {
-    redirect('/login');
-  }
+export default function CustomizePage() {
   return (
     <main className="min-h-screen w-full py-10 px-4 md:px-8 flex justify-center items-start select-none">
       {/* Mobile Notice (< 1024px) */}

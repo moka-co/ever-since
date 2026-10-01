@@ -1,7 +1,7 @@
 import 'server-only';
 import { createHash } from 'node:crypto';
 import { cookies } from 'next/headers';
-import { getIronSession, type IronSession, type SessionOptions } from 'iron-session';
+import { getIronSession, unsealData, type IronSession, type SessionOptions } from 'iron-session';
 import { dbClient } from '@/lib/storage/db';
 
 export interface SessionData {
@@ -58,6 +58,37 @@ export async function isSessionAuthenticated(): Promise<boolean> {
     const elapsedMs = Date.now() - session.loginAt;
     if (elapsedMs > SESSION_TTL_SECONDS * 1000) {
       session.destroy();
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Verifies whether a raw sealed session cookie value is valid, authenticated, and not expired.
+ * Suitable for use in middleware where `request.cookies` is used instead of Next.js `cookies()`.
+ */
+export async function verifySessionCookie(cookieValue?: string): Promise<boolean> {
+  if (!cookieValue) {
+    return false;
+  }
+
+  try {
+    const options = await getSessionOptions();
+    const session = await unsealData<SessionData>(cookieValue, {
+      password: options.password,
+      ttl: SESSION_TTL_SECONDS,
+    });
+
+    if (!session || !session.authenticated || !session.loginAt) {
+      return false;
+    }
+
+    const elapsedMs = Date.now() - session.loginAt;
+    if (elapsedMs > SESSION_TTL_SECONDS * 1000) {
       return false;
     }
 
