@@ -1,0 +1,23 @@
+{
+  "secret": {
+    "value": "12345678901234567890"
+  },
+  "config": {
+    "anniversaryDate": "2025-01-01"
+  },
+  "memories": [
+    {
+      "id": "0ecd6376-7aaf-4b5e-b114-0f67ffd4b1b7",
+      "heading": "Our Anniversary",
+      "text": "Celebration dinner",
+      "mediaId": null
+    },
+    {
+      "id": "da8318ca-2b68-4df1-8429-518ded8ed50b",
+      "heading": "First Date Updated",
+      "text": "Hot chocolate by the canal",
+      "mediaId": "1.jpg"
+    }
+  ],
+  "media": []
+}

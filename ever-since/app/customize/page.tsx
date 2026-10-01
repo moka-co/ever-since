@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { mediaDbClient } from '@/lib/storage/media-db';
+import ConfigForm from './config-form';
 import MediaManager from './media-manager';
+import MemoriesManager from './memories-manager';
 
 export default async function CustomizePage() {
   const db = await mediaDbClient.read().catch(() => ({
@@ -48,179 +50,13 @@ export default async function CustomizePage() {
         </header>
 
         {/* 1. Anniversary Date Config */}
-        <section
-          aria-labelledby="config-heading"
-          className="flex flex-col gap-4 pb-8 border-b border-[#E5E7EB]"
-        >
-          <div className="flex items-center justify-between">
-            <h2 id="config-heading" className="text-lg font-semibold text-foreground">
-              Anniversary Date
-            </h2>
-            <span className="text-xs text-muted">The kickoff date for your story</span>
-          </div>
-          <form className="flex items-center gap-3">
-            <input
-              type="date"
-              name="anniversaryDate"
-              defaultValue={db.config.anniversaryDate || '2025-09-30'}
-              className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-foreground focus:border-cta focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs"
-            />
-            <button
-              type="submit"
-              className="rounded-lg bg-[#1E1B24] hover:bg-[#2D2837] text-white px-5 py-2 text-sm font-medium transition-colors shadow-xs"
-            >
-              Save Date
-            </button>
-          </form>
-        </section>
+        <ConfigForm initialDate={db.config.anniversaryDate} />
 
         {/* 2. Media Management (Max 20 files, 10MB limit for photos, 50MB for videos) */}
         <MediaManager initialMedia={db.media} />
 
-        {/* 3. Create / Edit Memory Form */}
-        <section
-          aria-labelledby="memory-form-heading"
-          className="flex flex-col gap-4 pb-8 border-b border-[#E5E7EB]"
-        >
-          <div>
-            <h2 id="memory-form-heading" className="text-lg font-semibold text-foreground">
-              Add / Edit Memory
-            </h2>
-            <p className="text-xs text-muted mt-0.5">Author a new memory card for your timeline</p>
-          </div>
-
-          <form className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="memory-heading" className="text-sm font-medium text-foreground">
-                Header
-              </label>
-              <input
-                id="memory-heading"
-                type="text"
-                name="heading"
-                placeholder="Ever since we met..."
-                maxLength={100}
-                className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-cta focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="memory-text" className="text-sm font-medium text-foreground">
-                Text
-              </label>
-              <input
-                id="memory-text"
-                type="text"
-                name="text"
-                placeholder="Memory description..."
-                maxLength={100}
-                className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-cta focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="memory-media" className="text-sm font-medium text-foreground">
-                  Media
-                </label>
-                <select
-                  id="memory-media"
-                  name="mediaId"
-                  defaultValue=""
-                  className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-foreground focus:border-cta focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs"
-                >
-                  <option value="">None</option>
-                  {db.media.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.filename}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="memory-button" className="text-sm font-medium text-foreground">
-                  Fun Button
-                </label>
-                <select
-                  id="memory-button"
-                  name="buttonType"
-                  defaultValue=""
-                  className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-foreground focus:border-cta focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs"
-                >
-                  <option value="">None</option>
-                  <option value="seal">Pixel Seal</option>
-                  <option value="sound">Sound Effect (Ye-he)</option>
-                  <option value="yes-no">Dodging Yes/No</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="submit"
-                className="rounded-lg bg-cta hover:bg-cta-hover text-white px-6 py-2.5 text-sm font-medium transition-colors shadow-xs"
-              >
-                Save Memory
-              </button>
-            </div>
-          </form>
-        </section>
-
-        {/* 4. Memories List & Reordering */}
-        <section
-          aria-labelledby="memories-list-heading"
-          className="flex flex-col gap-4"
-        >
-          <div>
-            <h2 id="memories-list-heading" className="text-lg font-semibold text-foreground">
-              Memories Timeline
-            </h2>
-            <p className="text-xs text-muted mt-0.5">Reorder or modify cards in the story</p>
-          </div>
-
-          <ol className="flex flex-col gap-2.5">
-            <li className="flex items-center justify-between gap-4 p-3.5 rounded-xl border border-[#E5E7EB] bg-gray-50/60 hover:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <span aria-hidden="true" className="text-muted cursor-grab select-none">::</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    aria-label="Move memory up"
-                    className="w-7 h-7 rounded-md border border-[#E5E7EB] bg-white hover:bg-gray-100 flex items-center justify-center text-xs font-semibold text-foreground transition-colors shadow-2xs"
-                  >
-                    &uarr;
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Move memory down"
-                    className="w-7 h-7 rounded-md border border-[#E5E7EB] bg-white hover:bg-gray-100 flex items-center justify-center text-xs font-semibold text-foreground transition-colors shadow-2xs"
-                  >
-                    &darr;
-                  </button>
-                </div>
-                <strong className="text-sm font-semibold text-foreground">
-                  Ever since we met...
-                </strong>
-                <span className="text-xs text-muted">(1.jpg)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="text-xs text-foreground hover:text-cta font-medium px-3 py-1.5 rounded-lg border border-[#E5E7EB] bg-white hover:bg-gray-50 transition-colors shadow-2xs"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="text-xs text-rose-600 hover:text-rose-700 font-medium px-3 py-1.5 rounded-lg border border-[#E5E7EB] bg-white hover:bg-rose-50 transition-colors shadow-2xs"
-                >
-                  Delete
-                </button>
-              </div>
-            </li>
-          </ol>
-        </section>
+        {/* 3 & 4. Memory Authoring & Memories Timeline List */}
+        <MemoriesManager initialMemories={db.memories} mediaList={db.media} />
       </div>
     </main>
   );
