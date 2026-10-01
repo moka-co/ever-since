@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx tests/verify_middleware.ts"
+    "test": "tsx tests/verify_middleware.ts && tsx tests/queue.test.ts"
   },
   "dependencies": {
     "iron-session": "^9.0.1",

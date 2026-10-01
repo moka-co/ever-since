@@ -3,14 +3,17 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
 import { dbSchema, secretSchema, type DatabaseSchema } from './schema';
+import { WriteQueue, writeQueue } from './queue';
 
 const DEFAULT_DB_PATH = resolve(process.cwd(), 'data', 'db.json');
 
 export class JsonDatabaseClient {
   private readonly dbPath: string;
+  private readonly queue: WriteQueue;
 
-  constructor(dbPath: string = DEFAULT_DB_PATH) {
+  constructor(dbPath: string = DEFAULT_DB_PATH, queue?: WriteQueue) {
     this.dbPath = dbPath;
+    this.queue = queue ?? (dbPath === DEFAULT_DB_PATH ? writeQueue : new WriteQueue(dbPath));
   }
 
   /**
@@ -49,6 +52,15 @@ export class JsonDatabaseClient {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Safely updates the database via the write queue in a serialized read-modify-write transaction.
+   */
+  async update(
+    updater: (current: DatabaseSchema) => Promise<DatabaseSchema> | DatabaseSchema
+  ): Promise<DatabaseSchema> {
+    return this.queue.update(updater);
   }
 }
 
