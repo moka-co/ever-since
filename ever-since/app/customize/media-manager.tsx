@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import type { MediaRecord } from '@/lib/storage/schema';
 import { MAX_MEDIA_COUNT } from '@/lib/media/validation';
 
@@ -10,11 +11,14 @@ interface MediaManagerProps {
 }
 
 export default function MediaManager({ initialMedia, onMediaChanged }: MediaManagerProps) {
+  const router = useRouter();
   const [mediaList, setMediaList] = useState<MediaRecord[]>(initialMedia);
   const [isUploading, setIsUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [mountTime] = useState(() => Date.now());
+  const [mediaVersions, setMediaVersions] = useState<Record<string, number>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -50,10 +54,16 @@ export default function MediaManager({ initialMedia, onMediaChanged }: MediaMana
         return;
       }
 
-      const updated = [...mediaList, data.media as MediaRecord];
+      const newMedia = data.media as MediaRecord;
+      const updated = [...mediaList, newMedia];
       setMediaList(updated);
+      setMediaVersions((prev) => ({
+        ...prev,
+        [newMedia.id]: Date.now(),
+      }));
       onMediaChanged?.(updated);
-      setSuccessMessage(`Successfully uploaded ${data.media.filename}`);
+      router.refresh();
+      setSuccessMessage(`Successfully uploaded ${newMedia.filename}`);
 
       // Reset file input
       if (fileInputRef.current) {
@@ -89,7 +99,13 @@ export default function MediaManager({ initialMedia, onMediaChanged }: MediaMana
 
       const updated = mediaList.filter((m) => m.id !== id);
       setMediaList(updated);
+      setMediaVersions((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       onMediaChanged?.(updated);
+      router.refresh();
       setSuccessMessage('Media deleted successfully.');
     } catch {
       setErrorMessage('A network error occurred while deleting. Please try again.');
@@ -204,7 +220,7 @@ export default function MediaManager({ initialMedia, onMediaChanged }: MediaMana
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={`/api/media/${item.filename}`}
+                        src={`/api/media/${item.filename}?t=${mediaVersions[item.id] ?? mountTime}`}
                         alt={item.filename}
                         className="w-full h-full object-cover"
                       />
