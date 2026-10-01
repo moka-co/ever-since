@@ -4,7 +4,11 @@ import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/auth/session';
 export const runtime = 'nodejs';
 
 // Public API endpoints that do not require authentication
-const PUBLIC_API_PATHS = new Set(['/api/auth/login', '/api/auth/session']);
+const PUBLIC_API_PATHS = new Set([
+  '/api/auth/login',
+  '/api/auth/session',
+  '/api/auth/logout',
+]);
 
 /**
  * Middleware responsible for verifying the iron-session cookie on requests to:
@@ -12,7 +16,9 @@ const PUBLIC_API_PATHS = new Set(['/api/auth/login', '/api/auth/session']);
  * - "/customize/*" (admin dashboard)
  * - Protected API routes ("/api/*")
  *
- * Missing or expired sessions are redirected to "/login".
+ * Missing or expired sessions are:
+ * - Returned as JSON { error: "not authenticated" } (401) for API routes
+ * - Redirected to "/login" for page routes
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -29,6 +35,12 @@ export async function middleware(request: NextRequest) {
   const isAuthenticated = await verifySessionCookie(sessionCookie);
 
   if (!isAuthenticated) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { error: 'not authenticated' },
+        { status: 401 }
+      );
+    }
     const loginUrl = new URL('/login', request.url);
     return NextResponse.redirect(loginUrl);
   }
