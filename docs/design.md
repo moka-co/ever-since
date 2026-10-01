@@ -52,7 +52,9 @@
   - **Caption / Subtext**: 13px (Medium, line-height 1.4)
 
 ### Components & Motion
-- **Component Geometry**: Soft rounded corners (e.g., rounded-2xl to rounded-3xl), generous touch targets (minimum 44x44px), and subtle layered drop shadows.
+- **Component Geometry & Shadows**:
+  - Soft rounded corners (e.g., `rounded-2xl` to `rounded-3xl` / `rounded-[32px]`) and generous touch targets (minimum 44x44px).
+  - **Card Shadows (Required)**: All cards across the application (including the login card, date-entry card, and memory flow cards) require a subtle drop shadow (e.g., `shadow-sm` or `shadow-md`) alongside their border to ensure clean visual separation, depth, and contrast against the pastel gradient background.
 - **Motion & Reduced Motion (`prefers-reduced-motion`)**:
   - Default: Subtle bouncy transitions, card slide gestures, and interactive spring physics.
   - When reduced motion is preferred: Bouncy and slide animations are replaced with gentle 150ms crossfades; dynamic runaway button movement is disabled in favor of static, accessible progression.
@@ -61,8 +63,8 @@
 
 ### Login Screen (Emotional Framing & Failure States)
 - **Concept**: Sentimental framing that turns authentication into part of the narrative (e.g., "Ever since [date]...").
-- **Input Visuals**: A minimalist text input styled subtly to blend into the romantic copy rather than looking like an enterprise tech login box.
-- **Input Guidance**: Includes a subtle, romantic placeholder hint (e.g., `"Our date..."`) to gently guide the user without breaking immersion.
+- **Card Visuals & Input**: Enclosed in a centered white/light card (`rounded-2xl`) requiring a subtle drop shadow (`shadow-sm`) and border to elevate it gently above the background aura. A minimalist text input styled subtly to blend into the romantic copy rather than looking like an enterprise tech login box.
+- **Input Guidance**: Includes a subtle, romantic placeholder hint (e.g., `"Our date..."` or `"ask your nerd"`) to gently guide the user without breaking immersion.
 - **Failure States & Escalating Feedback (5 Attempts)**:
   - Attempts 1–2: Gentle input shake with a warm retry prompt.
   - Attempt 3: Playful pleading copy: *"I'm crying, 3 tries left"*.
@@ -74,7 +76,7 @@
 
 ### Date-Entry Screen (Story Initiation)
 - **Concept**: Occurs immediately after successful authentication to kick off the memory timeline.
-- **Visuals & Layout**: Near-identical aesthetic to the login screen, preserving the emotional, full-screen romantic framing (e.g., "The day our story began...").
+- **Visuals & Layout**: Near-identical aesthetic to the login screen, featuring a card with required subtle drop shadow (`shadow-sm`), preserving the emotional, full-screen romantic framing (e.g., "The day our story began...").
 - **Input & Submission**: A minimalist date input matching the login field styling. Submitting a valid date initiates the transition into the linear memory flow.
 - **Autofocus & Mobile Keyboards**: 
   - Autofocus the first input field on load to reduce interaction friction.
@@ -84,7 +86,7 @@
 ### Main Memory Flow & Navigation
 - **Structure**: A linear, swipeable flow where only **1 modern card is viewed at a time**.
 - **Media Presentation**:
-  - Cards feature soft rounded corners (avoiding outdated Polaroid borders).
+  - Cards feature soft rounded corners (avoiding outdated Polaroid borders) and a required subtle drop shadow (`shadow-xs` / `shadow-sm`) to stand out cleanly from the canvas.
   - If the card container is a fixed square/rectangle, apply `object-fit: contain` with a soft ambient blurred background or pastel fill behind the photo to avoid awkward cropping of heads or borders.
   - A subtle card stack peek or soft edge shadow on the right indicates upcoming memories, explicitly showing nothing recognizable (strictly neutral shadow/edge with no thumbnail bleed) to preserve the sequential surprise.
 - **Progress Indicator**:
