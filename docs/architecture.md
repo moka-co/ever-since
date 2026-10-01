@@ -76,6 +76,16 @@ ever-since/
     - `schema.ts` -> contains the schema for the database
     - `storage/queue.ts` -> serializes writes
 
+### Containerization & Dockerfile
+
+The containerization strategy for EverSince centers around a clean, multi-stage Dockerfile structured across deps, build, and runtime phases to deliver a minimal, secure, and production-ready image. In the initial dependency stage (deps), an Alpine-based Node.js runtime installs essential operating system libraries, including libc6-compat, which ensures native compatibility with Sharp's image processing binaries, followed by a clean install of all project dependencies via npm ci. The intermediate build stage then compiles the Next.js application in production mode with telemetry disabled, isolating the build toolchain and temporary compilation artifacts away from the eventual distribution layer.
+
+The final runtime stage builds upon a lean node:20-alpine environment and drops elevated root privileges by creating a dedicated unprivileged user and group (nextjs:nodejs). Only the minimal distribution assets—the compiled .next output, production dependencies, public assets, and runtime scripts—are copied into the working directory, keeping the overall attack surface and image footprint small. The container exposes port 3000 and is configured to bind to all network interfaces (0.0.0.0), allowing reverse proxies or local port forwarding to route external traffic smoothly into the Next.js web application.
+
+State persistence is decoupled from the ephemeral container lifecycle through two explicit volume mount points mapped to /app/data and /app/media. The data/ volume preserves the primary JSON database (db.json) across redeployments, while the media/ volume retains all uploaded photo and video binaries so that media storage remains persistent despite container restarts or image upgrades. File ownership and directory permissions across both mount points are assigned to the unprivileged nextjs user during image generation, ensuring seamless write operations by the background serialization queue without requiring root execution.
+
+Container lifecycle management and startup security are orchestrated through the project's startup script (scripts/init-secret.mjs), executed directly on boot via tsx. Upon container launch, this script dynamically issues a fresh, cryptographically strong 20-character secret, prints it immediately to standard output for capture by Docker logs, updates both the internal database schema and .env, and launches Next.js in production mode (next start). When Docker sends termination signals such as SIGTERM or SIGINT, the process intercepts the event and wipes the active secret from disk, cleanly invalidating all outstanding user sessions upon container shutdown as required by the security model.
+
 ### App startup
 1. The App backend is start up e.g. with docker
 2. The 20-char secret is issued and shown in the startup log line

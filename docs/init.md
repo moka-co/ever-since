@@ -29,9 +29,34 @@ npx create-next-app@latest ever-since --typescript --tailwind --eslint --app --s
 On backend startup, a 20-character secret is generated and saved in a `.env` file in the root directory. This secret is used for authentication and cookie encryption (via `iron-session`). Note that on each restart, a new secret is generated and the old one is invalidated, logging out all active sessions. This is expected behavior.
 
 ## Docker Setup (Production)
-The application is designed to be run using Docker with a multi-stage build. 
+The application is designed to be run using Docker with a multi-stage build (`deps` -> `build` -> `runtime`). 
 It requires two volumes to be mounted:
 - `data/` for the JSON database (`db.json`)
 - `media/` for user-uploaded photos and videos
 
-*More details on Docker deployment will be added as the infrastructure is built out.*
+### Build Image
+```bash
+# From repository root
+docker build -t ever-since .
+
+# Or from ever-since directory
+cd ever-since
+docker build -t ever-since .
+```
+
+### Run Container
+```bash
+docker run -d \
+  -p 3000:3000 \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/media:/app/media \
+  --name ever-since-app \
+  ever-since
+```
+
+### Inspect Startup Secret & Logs
+The 20-character startup secret is emitted to stdout on launch and captured by Docker logs:
+```bash
+docker logs ever-since-app
+```
+

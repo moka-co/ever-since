@@ -1,0 +1,15 @@
+ever-since/node_modules
+ever-since/.next
+ever-since/data/*
+!ever-since/data/.gitkeep
+ever-since/media/*
+!ever-since/media/.gitkeep
+.env*
+.git
+.gitignore
+docs
+ever-since/tests
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*

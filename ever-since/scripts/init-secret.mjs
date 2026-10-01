@@ -27,11 +27,20 @@ dbSchema.parse(db);
 mkdirSync(dirname(DB_PATH), { recursive: true });
 writeFileSync(DB_PATH, JSON.stringify(db, null, 2), "utf8");
 
-console.log(`Startup - Saved secret: ${secret} to DB  path ${DB_PATH}`);
+// Also save secret to .env in root folder as documented
+const ENV_PATH = resolve(process.cwd(), ".env");
+try {
+  writeFileSync(ENV_PATH, `SECRET=${secret}\n`, "utf8");
+} catch {
+  // Non-fatal if .env write fails
+}
 
-// Spawn a new child to detect SIGINT/SIGTERM and clean the database secret if required.
+console.log(`Startup - Saved secret: ${secret} to DB path ${DB_PATH}`);
+
+// Spawn next process: "start" in production, "dev" in development
+const nextCommand = process.env.NODE_ENV === "production" ? "start" : "dev";
 const nextBin = resolve(process.cwd(), "node_modules/next/dist/bin/next");
-const nextProcess = spawn(process.execPath, [nextBin, "dev"], {
+const nextProcess = spawn(process.execPath, [nextBin, nextCommand], {
   stdio: "inherit",
 });
 
@@ -45,10 +54,23 @@ function cleanup() {
 
   // Set secret value to empty on shut down
   if (existsSync(DB_PATH)) {
-    const currentDb = JSON.parse(readFileSync(DB_PATH, "utf8"));
-    currentDb.secret.value="";
-    writeFileSync(DB_PATH, JSON.stringify(currentDb, null, 2), "utf8");
-    console.log("Shutdown - Secret removed from DB.");
+    try {
+      const currentDb = JSON.parse(readFileSync(DB_PATH, "utf8"));
+      currentDb.secret.value = "";
+      writeFileSync(DB_PATH, JSON.stringify(currentDb, null, 2), "utf8");
+      console.log("Shutdown - Secret removed from DB.");
+    } catch (e) {
+      console.warn("Shutdown - Could not clear DB secret:", e.message);
+    }
+  }
+
+  if (existsSync(ENV_PATH)) {
+    try {
+      writeFileSync(ENV_PATH, "SECRET=\n", "utf8");
+      console.log("Shutdown - Secret removed from .env.");
+    } catch (e) {
+      console.warn("Shutdown - Could not clear .env:", e.message);
+    }
   }
 }
 
