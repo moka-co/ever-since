@@ -1,29 +1,17 @@
 import { randomBytes } from "node:crypto";
 import { dirname, resolve } from "node:path";
-import { z } from "zod";
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
-
-
-const secretSchema = z.object({
-  value: z.string().length(20),
-});
-
+import { secretSchema, initialDb, dbSchema } from "../lib/storage/schema.ts";
 
 
 const secret = randomBytes(15).toString("base64url");
-
-console.log(`Startup - Generated secret: ${secret}`);
-
 //Validate the secret schema
 const validatedSecret = secretSchema.parse({ value: secret });
+console.log(`Startup - Generated secret: ${secret}`);
 
-//Check if the db path exists
-let db = {
-  config: { anniversaryDate: "" },
-  memories: [],
-  media: [],
-};
+// Check if the db path exists, otherwise fall back to initial schema defaults
+let db = { ...initialDb };
 const DB_PATH = resolve(process.cwd(), "data", "db.json");
 if (existsSync(DB_PATH)) {
   db = JSON.parse(readFileSync(DB_PATH, "utf8"));
@@ -32,6 +20,10 @@ if (existsSync(DB_PATH)) {
 // Update the secret and write it back to disk
 db.secret = validatedSecret;
 
+// Validate the whole db before writing
+dbSchema.parse(db);
+
+//Sync changes to fs
 mkdirSync(dirname(DB_PATH), { recursive: true });
 writeFileSync(DB_PATH, JSON.stringify(db, null, 2), "utf8");
 
@@ -49,14 +41,14 @@ function cleanup() {
   if (isCleanedUp) return;
   isCleanedUp = true;
 
-  console.log("\n[Shutdown] Ctrl+C detected — cleaning up secret...");
+  console.log("\nShutdown Ctrl+C detected — cleaning up secret...");
 
   // Set secret value to empty on shut down
   if (existsSync(DB_PATH)) {
     const currentDb = JSON.parse(readFileSync(DB_PATH, "utf8"));
     currentDb.secret.value="";
     writeFileSync(DB_PATH, JSON.stringify(currentDb, null, 2), "utf8");
-    console.log("[Shutdown] Secret removed from DB.");
+    console.log("Shutdown - Secret removed from DB.");
   }
 }
 

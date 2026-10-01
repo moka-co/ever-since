@@ -38,3 +38,44 @@ export const dbSchema = z.object({
 });
 export type DatabaseSchema = z.infer<typeof dbSchema>;
 
+// Initial database template without secret
+export const initialDb: Omit<DatabaseSchema, "secret"> = {
+  config: { anniversaryDate: "" },
+  memories: [],
+  media: [],
+};
+
+// Factory function to construct a fresh, validated database record
+export function createDefaultDb(secret: SecretRecord): DatabaseSchema {
+  return dbSchema.parse({
+    secret,
+    ...initialDb,
+  });
+}
+
+// Singleton design pattern for database state management
+export class DatabaseSingleton {
+  private static instance: DatabaseSchema | null = null;
+
+  private constructor() {}
+
+  public static getInstance(secret?: SecretRecord): DatabaseSchema {
+    if (!DatabaseSingleton.instance) {
+      if (!secret) {
+        throw new Error("Database not initialized. A secret is required to construct default database.");
+      }
+      DatabaseSingleton.instance = createDefaultDb(secret);
+    }
+    return DatabaseSingleton.instance;
+  }
+
+  public static setInstance(db: DatabaseSchema): DatabaseSchema {
+    DatabaseSingleton.instance = dbSchema.parse(db);
+    return DatabaseSingleton.instance;
+  }
+
+  public static resetInstance(): void {
+    DatabaseSingleton.instance = null;
+  }
+}
+
