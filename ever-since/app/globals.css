@@ -1,26 +1,56 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #FFF0F3;
+  --background-base: #FFFFFF;
+  --foreground: #1E1B24;
+  --muted: #6B7280;
+  --card-border: #F1E8EC;
+  --nav-arrow: #9CA3AF;
+  --nav-arrow-hover: #DB2777;
+  --cta: #DB2777;
+  --cta-hover: #BE185D;
+  --cta-foreground: #FFFFFF;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-background-base: var(--background-base);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-muted: var(--muted);
+  --color-card-border: var(--card-border);
+  --color-nav-arrow: var(--nav-arrow);
+  --color-nav-arrow-hover: var(--nav-arrow-hover);
+  --color-cta: var(--cta);
+  --color-cta-hover: var(--cta-hover);
+  --color-cta-foreground: var(--cta-foreground);
+  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  --text-memory-header: 28px;
+  --text-memory-header--line-height: 1.25;
+  --text-caption: 13px;
+  --text-caption--line-height: 1.4;
 }
 
 body {
-  background: var(--background);
+  min-height: 100vh;
+  min-height: 100dvh;
+  background-color: #FFF0F3;
+  background-image: radial-gradient(at 50% 0%, rgba(244, 114, 182, 0.35) 0%, rgba(244, 114, 182, 0) 75%);
+  background-attachment: fixed;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.text-memory-header {
+  font-size: 28px;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.text-caption {
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 500;
 }

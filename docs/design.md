@@ -23,7 +23,22 @@
 ## Style, Mood, & Design System
 
 ### Color Palette
-- **Status**: [TODO: Final color palette selection pending]
+- **Color Tokens**:
+  - **Sfondo di base (Base / Surface Background - `--background-base`)**: `#FAFAFA` o `#FFFFFF` (superficie pulita o neutra per card e pannelli).
+  - **Testo principale (Primary Text - `--foreground`)**: `#1E1B24` (un nero profondo con un accenno minimo di caldo/prugna, molto più armonico del grigio asfalto; garantisce contrasto elevato WCAG AA).
+  - **Testo secondario / Muted (`--muted`)**: `#6B7280` (grigio neutro per didascalie, placeholder e testo secondario).
+  - **Contorno cards (`--card-border`)**: `#E5E7EB` (grigio chiaro pulito) o `#F1E8EC` (un grigio chiarissimo con una puntina impercettibile di rosa/malva per legare il gradiente).
+  - **Frecce di navigazione (`--nav-arrow` / `--nav-arrow-hover`)**: `#9CA3AF` allo stato base, con transizione a `#1E1B24` o `#DB2777` in hover.
+  - **Accento bottoni (CTA - `--cta` / `--cta-hover`)**: `#DB2777` o `#BE185D` (magenta/lampone carico per garantire ottima leggibilità con testo bianco) oppure `#0F172A` (nero satinato per uno stile minimale ad alto contrasto).
+- **Background (Mesh Gradient tenue - Aura soft)**:
+  - Base color: `#FFF0F3` (soft warm blush)
+  - Light point / Glow at top center: `#F472B6` (pastel pink, 35% opacity / `rgba(244, 114, 182, 0.35)`)
+  - **Standard CSS**:
+    ```css
+    background-color: #FFF0F3;
+    background-image: radial-gradient(at 50% 0%, rgba(244, 114, 182, 0.35) 0%, rgba(244, 114, 182, 0) 75%);
+    background-attachment: fixed;
+    ```
 - **Contrast Rule (WCAG AA)**: 
   - Pastels and soft tints are strictly reserved for backgrounds, surface fills, and gentle decorative accents.
   - Text, icons, and interactive elements must use high-contrast saturated "anchor" tones (minimum 4.5:1 contrast for body copy; 3:1 for large headers and actionable buttons).
