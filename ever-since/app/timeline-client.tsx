@@ -12,7 +12,12 @@ interface TimelineClientProps {
 export default function TimelineClient({ memories, media }: TimelineClientProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isRewinding, setIsRewinding] = useState(false);
+  const [mountTime, setMountTime] = useState<number | null>(null);
   const rewindTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    setMountTime(Date.now());
+  }, []);
 
   // Dots Logic (Instagram style sliding window)
   const maxDots = 5;
@@ -58,6 +63,11 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
   const activeMemory = memories[currentIndex];
   const activeMedia = activeMemory?.mediaId ? media.find((m) => m.id === activeMemory.mediaId) : null;
   const showStackPeek = currentIndex < memories.length - 1;
+  const mediaSrc = activeMedia
+    ? mountTime
+      ? `/api/media/${activeMedia.filename}?t=${mountTime}`
+      : `/api/media/${activeMedia.filename}`
+    : '';
 
   if (memories.length === 0) {
     return (
@@ -137,10 +147,10 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
                   <figure className="w-full h-full flex items-center justify-center relative bg-white">
                     {activeMedia ? (
                       activeMedia.filename.match(/\.(mp4|webm|ogg)$/i) ? (
-                        <video src={`/api/media/${activeMedia.filename}`} className="w-full h-full object-cover" autoPlay loop muted playsInline />
+                        <video src={mediaSrc} className="w-full h-full object-cover" autoPlay loop muted playsInline />
                       ) : (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={`/api/media/${activeMedia.filename}`} alt="Memory media" className="w-full h-full object-cover" />
+                        <img src={mediaSrc} alt="Memory media" className="w-full h-full object-cover" />
                       )
                     ) : (
                       <div className="text-muted text-sm px-4 text-center">No media available</div>

@@ -31,7 +31,7 @@ export async function GET(request: Request, context: RouteContext) {
         status: 200,
         headers: {
           'Content-Type': mimeType,
-          'Cache-Control': 'public, max-age=86400',
+          'Cache-Control': 'no-cache, must-revalidate',
         },
       });
     } catch {

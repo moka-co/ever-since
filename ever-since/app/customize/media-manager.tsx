@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, type FormEvent } from 'react';
+import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { MediaRecord } from '@/lib/storage/schema';
 import { MAX_MEDIA_COUNT } from '@/lib/media/validation';
@@ -17,8 +17,12 @@ export default function MediaManager({ initialMedia, onMediaChanged }: MediaMana
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [mountTime] = useState(() => Date.now());
+  const [mountTime, setMountTime] = useState<number | null>(null);
   const [mediaVersions, setMediaVersions] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    setMountTime(Date.now());
+  }, []);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -220,7 +224,11 @@ export default function MediaManager({ initialMedia, onMediaChanged }: MediaMana
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={`/api/media/${item.filename}?t=${mediaVersions[item.id] ?? mountTime}`}
+                        src={
+                          (mediaVersions[item.id] ?? mountTime) !== null && (mediaVersions[item.id] ?? mountTime) !== undefined
+                            ? `/api/media/${item.filename}?t=${mediaVersions[item.id] ?? mountTime}`
+                            : `/api/media/${item.filename}`
+                        }
                         alt={item.filename}
                         className="w-full h-full object-cover"
                       />
