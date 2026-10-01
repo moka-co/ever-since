@@ -8,8 +8,8 @@ import { WriteQueue, writeQueue } from './queue';
 const DEFAULT_DB_PATH = resolve(process.cwd(), 'data', 'db.json');
 
 export class JsonDatabaseClient {
-  private readonly dbPath: string;
-  private readonly queue: WriteQueue;
+  protected readonly dbPath: string;
+  protected readonly queue: WriteQueue;
 
   constructor(dbPath: string = DEFAULT_DB_PATH, queue?: WriteQueue) {
     this.dbPath = dbPath;

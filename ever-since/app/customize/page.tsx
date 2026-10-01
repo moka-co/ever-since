@@ -1,6 +1,15 @@
 import Link from 'next/link';
+import { mediaDbClient } from '@/lib/storage/media-db';
+import MediaManager from './media-manager';
 
-export default function CustomizePage() {
+export default async function CustomizePage() {
+  const db = await mediaDbClient.read().catch(() => ({
+    secret: { value: '00000000000000000000' },
+    config: { anniversaryDate: '2025-09-30' },
+    memories: [],
+    media: [],
+  }));
+
   return (
     <main className="min-h-screen w-full py-10 px-4 md:px-8 flex justify-center items-start select-none">
       {/* Mobile Notice (< 1024px) */}
@@ -53,7 +62,7 @@ export default function CustomizePage() {
             <input
               type="date"
               name="anniversaryDate"
-              defaultValue="2025-09-30"
+              defaultValue={db.config.anniversaryDate || '2025-09-30'}
               className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-foreground focus:border-cta focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs"
             />
             <button
@@ -65,56 +74,8 @@ export default function CustomizePage() {
           </form>
         </section>
 
-        {/* 2. Media Management (Max 20 files, 10MB limit) */}
-        <section
-          aria-labelledby="media-heading"
-          className="flex flex-col gap-4 pb-8 border-b border-[#E5E7EB]"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 id="media-heading" className="text-lg font-semibold text-foreground">
-                Media Library
-              </h2>
-              <p className="text-xs text-muted mt-0.5">Images and videos for memories (max 10MB each)</p>
-            </div>
-            <span className="text-xs font-medium text-foreground bg-gray-100 px-3 py-1 rounded-full border border-[#E5E7EB]">
-              1 / 20 media files used
-            </span>
-          </div>
-
-          <form className="flex items-center gap-3">
-            <input
-              type="file"
-              name="file"
-              accept="image/*,video/*"
-              className="text-xs text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border file:border-[#E5E7EB] file:text-xs file:font-medium file:bg-gray-50 file:text-foreground hover:file:bg-gray-100 cursor-pointer"
-            />
-            <button
-              type="submit"
-              className="rounded-lg bg-[#1E1B24] hover:bg-[#2D2837] text-white px-4 py-2 text-xs font-medium transition-colors shadow-xs"
-            >
-              Upload Media
-            </button>
-          </form>
-
-          {/* Mock Media List */}
-          <ul className="flex flex-col gap-2 mt-2">
-            <li className="flex items-center justify-between p-3 rounded-xl border border-[#E5E7EB] bg-gray-50/50">
-              <div className="flex items-center gap-3">
-                <span className="w-8 h-8 rounded-lg bg-gray-200 flex items-center justify-center text-xs font-medium text-foreground">
-                  IMG
-                </span>
-                <span className="text-sm font-medium text-foreground">1.jpg</span>
-              </div>
-              <button
-                type="button"
-                className="text-xs text-rose-600 hover:text-rose-700 font-medium px-3 py-1 rounded-md hover:bg-rose-50 transition-colors"
-              >
-                Delete
-              </button>
-            </li>
-          </ul>
-        </section>
+        {/* 2. Media Management (Max 20 files, 10MB limit for photos, 50MB for videos) */}
+        <MediaManager initialMedia={db.media} />
 
         {/* 3. Create / Edit Memory Form */}
         <section
@@ -169,7 +130,11 @@ export default function CustomizePage() {
                   className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-foreground focus:border-cta focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs"
                 >
                   <option value="">None</option>
-                  <option value="1">1.jpg</option>
+                  {db.media.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.filename}
+                    </option>
+                  ))}
                 </select>
               </div>
 
