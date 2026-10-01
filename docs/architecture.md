@@ -1,7 +1,8 @@
 ## Architecture
 **Overview**:
 - Single Next.Js App
-- `data/` contains the schema in JSON
+- `data/` contains the database
+- `lib/auth/storage` containt the schema
 - `media/` refers to the local filesystem
 - Docker: standard DOCKERFILE with multi-stage build (deps -> build -> runtime) and two volumes on `data/` and `media/`. A stdout captured by docker logs any errors.
 
@@ -51,9 +52,22 @@ ever-since/
     │       └── schema.ts
 ```
 
-**Tools**
-- A linter for scanning code: Oxlint
-- 
+**Tools and Libraries**
+- **Runtime & Execution**:
+  - `tsx`: TypeScript execution engine used to run TypeScript and ESM scripts (e.g., `scripts/init-secret.mjs`) directly without pre-compilation across Node environments.
+  - `Next.js`: Fullstack framework powering App Router, Server/Client Components, and API routes.
+  - `React` & `React DOM`: Declarative UI component library.
+  - `TypeScript`: Static type checking across the entire application.
+- **Validation & Storage**:
+  - `Zod`: Schema declaration, validation, and type inference for the JSON database, configurations, and API inputs.
+  - `server-only`: Build-time guard preventing server-side code from leaking into client-side bundles.
+- **Authentication & Security**:
+  - `iron-session`: Encrypted, stateless cookie-based session handling.
+- **Styling**:
+  - `Tailwind CSS` & `@tailwindcss/postcss`: Utility-first CSS styling framework.
+- **Code Quality & Linting**:
+  - `ESLint` (`eslint-config-next`): Next.js linting rules.
+  - `Oxlint`: Fast linter for scanning code.
 
 **Storage Layer**:
 - `lib/`
