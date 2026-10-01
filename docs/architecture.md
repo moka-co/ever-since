@@ -64,8 +64,9 @@ ever-since/
   - `server-only`: Build-time guard preventing server-side code from leaking into client-side bundles.
 - **Authentication & Security**:
   - `iron-session`: Encrypted, stateless cookie-based session handling.
-- **Styling**:
+- **Styling & Animation**:
   - `Tailwind CSS` & `@tailwindcss/postcss`: Utility-first CSS styling framework.
+  - `Framer Motion`: Animation library for swipe gestures, card slides, and interactive spring physics.
 - **Code Quality & Linting**:
   - `ESLint` (`eslint-config-next`): Next.js linting rules.
   - `Oxlint`: Fast linter for scanning code.
