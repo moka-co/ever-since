@@ -117,11 +117,9 @@
 
 ### Website & App Inspirations (UI/UX References)
 *Note: Refer to repository READMEs, screenshots, and live demos for component styling and interaction cues.*
-- https://github.com/DevXPanda/Memories-TimeLine
 - https://github.com/matheusvps/ThreeYears
 - https://github.com/panthosarkar/wife-anniversary-site
-- https://github.com/TolqaDev/Lovers-Memory-Wall
-- https://github.com/jmcmomic/timeless-love-anniversary-app
+- https://github.com/Navaneeth223/timeless-love-anniversary-app
 - https://giftsqr.com/en/seo/couple-timeline-website
 - Yes/No button reference projects:
   - https://github.com/ivysone/Will-you-be-my-Valentine-
