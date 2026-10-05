@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { memoryDbClient } from '@/lib/storage/memory-db';
-import { ZodError } from 'zod';
+import { updateDb } from '@/lib/storage/db';
+import { errorResponse } from '@/lib/api';
+import type { MemoryRecord } from '@/lib/storage/schema';
 
 /**
  * PUT /api/memories/reorder
@@ -12,36 +13,46 @@ export async function PUT(request: Request) {
     const body = await request.json().catch(() => ({}));
     const { orderedIds } = body;
 
-    if (!Array.isArray(orderedIds)) {
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
       return NextResponse.json(
-        { error: 'orderedIds must be an array of memory UUID strings' },
+        { error: 'orderedIds must be a non-empty array of memory UUID strings' },
         { status: 400 }
       );
     }
 
-    const { memories } = await memoryDbClient.reorderMemories(orderedIds);
+    let reordered: MemoryRecord[] = [];
+
+    await updateDb((db) => {
+      const memoryMap = new Map(db.memories.map((m) => [m.id, m]));
+      const newOrderedList: MemoryRecord[] = [];
+
+      for (const id of orderedIds) {
+        const item = memoryMap.get(id);
+        if (item) {
+          newOrderedList.push(item);
+          memoryMap.delete(id);
+        }
+      }
+
+      for (const remaining of memoryMap.values()) {
+        newOrderedList.push(remaining);
+      }
+
+      reordered = newOrderedList;
+      return {
+        ...db,
+        memories: newOrderedList,
+      };
+    });
 
     return NextResponse.json(
       {
         message: 'Memories reordered successfully',
-        memories,
+        memories: reordered,
       },
       { status: 200 }
     );
   } catch (error) {
-    if (error instanceof ZodError) {
-      return NextResponse.json(
-        {
-          error: 'Invalid reorder payload. Each ID must be a valid UUID string.',
-          details: error.flatten(),
-        },
-        { status: 400 }
-      );
-    }
-    console.error('[API /api/memories/reorder PUT] Error reordering memories:', error);
-    return NextResponse.json(
-      { error: 'Failed to reorder memories' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'API /api/memories/reorder PUT');
   }
 }

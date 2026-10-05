@@ -3,17 +3,16 @@
 import { useState, useRef, type FormEvent, type DragEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { MemoryRecord, MediaRecord } from '@/lib/storage/schema';
+import Alert from './alert';
 
 interface MemoriesManagerProps {
   initialMemories: MemoryRecord[];
   mediaList: MediaRecord[];
-  onMemoriesChanged?: (memories: MemoryRecord[]) => void;
 }
 
 export default function MemoriesManager({
   initialMemories,
   mediaList,
-  onMemoriesChanged,
 }: MemoriesManagerProps) {
   const router = useRouter();
   const [memories, setMemories] = useState<MemoryRecord[]>(initialMemories);
@@ -55,7 +54,6 @@ export default function MemoriesManager({
     setErrorMessage(null);
     setSuccessMessage(null);
 
-    // Scroll form smoothly into view
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
@@ -81,59 +79,38 @@ export default function MemoriesManager({
     setIsSubmitting(true);
 
     try {
-      if (editingId) {
-        // PUT update existing memory
-        const response = await fetch(`/api/memories/${editingId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            heading: trimmedHeading || null,
-            text: trimmedText || null,
-            mediaId: mediaId || null,
-          }),
-        });
+      const url = editingId ? `/api/memories/${editingId}` : '/api/memories';
+      const method = editingId ? 'PUT' : 'POST';
 
-        const data = await response.json();
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          heading: trimmedHeading || null,
+          text: trimmedText || null,
+          mediaId: mediaId || null,
+        }),
+      });
 
-        if (!response.ok) {
-          setErrorMessage(data.error || 'Failed to update memory.');
-          return;
-        }
+      const data = await response.json();
 
-        const updatedList = memories.map((m) =>
-          m.id === editingId ? (data.memory as MemoryRecord) : m
-        );
-        setMemories(updatedList);
-        onMemoriesChanged?.(updatedList);
-        setSuccessMessage('Memory updated successfully.');
-        resetForm();
-        router.refresh();
-      } else {
-        // POST create new memory
-        const response = await fetch('/api/memories', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            heading: trimmedHeading || null,
-            text: trimmedText || null,
-            mediaId: mediaId || null,
-          }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          setErrorMessage(data.error || 'Failed to create memory.');
-          return;
-        }
-
-        const updatedList = [...memories, data.memory as MemoryRecord];
-        setMemories(updatedList);
-        onMemoriesChanged?.(updatedList);
-        setSuccessMessage('Memory created successfully.');
-        resetForm();
-        router.refresh();
+      if (!response.ok) {
+        setErrorMessage(data.error || 'Failed to save memory.');
+        return;
       }
+
+      if (editingId) {
+        setMemories((prev) =>
+          prev.map((m) => (m.id === editingId ? (data.memory as MemoryRecord) : m))
+        );
+        setSuccessMessage('Memory updated successfully.');
+      } else {
+        setMemories((prev) => [...prev, data.memory as MemoryRecord]);
+        setSuccessMessage('Memory created successfully.');
+      }
+
+      resetForm();
+      router.refresh();
     } catch {
       setErrorMessage('A network error occurred while saving the memory.');
     } finally {
@@ -162,9 +139,7 @@ export default function MemoriesManager({
         return;
       }
 
-      const updatedList = memories.filter((m) => m.id !== id);
-      setMemories(updatedList);
-      onMemoriesChanged?.(updatedList);
+      setMemories((prev) => prev.filter((m) => m.id !== id));
       if (editingId === id) {
         resetForm();
       }
@@ -180,7 +155,6 @@ export default function MemoriesManager({
   async function persistReorder(newOrder: MemoryRecord[]) {
     const previousOrder = [...memories];
     setMemories(newOrder);
-    onMemoriesChanged?.(newOrder);
     setIsReordering(true);
 
     try {
@@ -194,7 +168,6 @@ export default function MemoriesManager({
 
       if (!response.ok) {
         setMemories(previousOrder);
-        onMemoriesChanged?.(previousOrder);
         setErrorMessage(data.error || 'Failed to reorder memories.');
         return;
       }
@@ -203,28 +176,19 @@ export default function MemoriesManager({
       router.refresh();
     } catch {
       setMemories(previousOrder);
-      onMemoriesChanged?.(previousOrder);
       setErrorMessage('A network error occurred while reordering memories.');
     } finally {
       setIsReordering(false);
     }
   }
 
-  function handleMoveUp(index: number) {
-    if (index <= 0 || isReordering) return;
+  function move(index: number, direction: -1 | 1) {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= memories.length || isReordering) return;
     const nextList = [...memories];
-    const temp = nextList[index - 1];
-    nextList[index - 1] = nextList[index];
-    nextList[index] = temp;
-    persistReorder(nextList);
-  }
-
-  function handleMoveDown(index: number) {
-    if (index >= memories.length - 1 || isReordering) return;
-    const nextList = [...memories];
-    const temp = nextList[index + 1];
-    nextList[index + 1] = nextList[index];
-    nextList[index] = temp;
+    const temp = nextList[index];
+    nextList[index] = nextList[targetIndex];
+    nextList[targetIndex] = temp;
     persistReorder(nextList);
   }
 
@@ -304,39 +268,11 @@ export default function MemoriesManager({
           )}
         </div>
 
-        {/* Inline Alerts */}
         {errorMessage && (
-          <div
-            role="alert"
-            className="p-3 text-xs rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-center justify-between"
-          >
-            <span>{errorMessage}</span>
-            <button
-              type="button"
-              onClick={() => setErrorMessage(null)}
-              className="text-rose-500 hover:text-rose-800 font-bold ml-2"
-              aria-label="Dismiss error"
-            >
-              ✕
-            </button>
-          </div>
+          <Alert type="error" message={errorMessage} onDismiss={() => setErrorMessage(null)} />
         )}
-
         {successMessage && (
-          <div
-            role="status"
-            className="p-3 text-xs rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-between"
-          >
-            <span>{successMessage}</span>
-            <button
-              type="button"
-              onClick={() => setSuccessMessage(null)}
-              className="text-emerald-500 hover:text-emerald-800 font-bold ml-2"
-              aria-label="Dismiss message"
-            >
-              ✕
-            </button>
-          </div>
+          <Alert type="success" message={successMessage} onDismiss={() => setSuccessMessage(null)} />
         )}
 
         <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -492,7 +428,6 @@ export default function MemoriesManager({
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    {/* Drag Grip */}
                     <span
                       aria-label="Drag to reorder"
                       className="text-muted cursor-grab active:cursor-grabbing select-none text-base font-mono px-1 hover:text-foreground"
@@ -500,11 +435,10 @@ export default function MemoriesManager({
                       ::
                     </span>
 
-                    {/* Accessible Up/Down Buttons */}
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         type="button"
-                        onClick={() => handleMoveUp(index)}
+                        onClick={() => move(index, -1)}
                         disabled={isFirst || isReordering}
                         aria-label={`Move "${item.heading || 'memory'}" up`}
                         className="w-7 h-7 rounded-md border border-[#E5E7EB] bg-white hover:bg-gray-100 flex items-center justify-center text-xs font-semibold text-foreground transition-colors shadow-2xs disabled:opacity-30 disabled:cursor-not-allowed"
@@ -513,7 +447,7 @@ export default function MemoriesManager({
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleMoveDown(index)}
+                        onClick={() => move(index, 1)}
                         disabled={isLast || isReordering}
                         aria-label={`Move "${item.heading || 'memory'}" down`}
                         className="w-7 h-7 rounded-md border border-[#E5E7EB] bg-white hover:bg-gray-100 flex items-center justify-center text-xs font-semibold text-foreground transition-colors shadow-2xs disabled:opacity-30 disabled:cursor-not-allowed"
@@ -522,7 +456,6 @@ export default function MemoriesManager({
                       </button>
                     </div>
 
-                    {/* Memory Content */}
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-2">
                         <strong className="text-sm font-semibold text-foreground truncate">
@@ -542,7 +475,6 @@ export default function MemoriesManager({
                     </div>
                   </div>
 
-                  {/* Actions */}
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"

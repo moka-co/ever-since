@@ -126,8 +126,6 @@ export default function LoginForm({ initialAuthenticated }: LoginFormProps) {
         </h1>
 
         <form
-          action="/api/auth/login"
-          method="POST"
           onSubmit={handlePasswordSubmit}
           className="w-full flex flex-col items-center gap-4"
         >

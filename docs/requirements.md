@@ -48,9 +48,9 @@ Buttons idea to implement:
 ## Tech Stack
 - Front-end: TypeScript (strict mode), Tailwind CSS
 - Back-end: Next.js
-- Data storage: flat JSON file, in-memory write queue, Zod validation on all reads/writes for type safety. Media is handled with local storage. Sharp for image processing
+- Data storage: flat JSON file with Zod validation on all reads/writes for type safety. Since there is a single authoring user (admin), the probability of write race conditions is minimal and practically negligible for this app. Media binaries are stored in the local filesystem; the `GET /api/media/[id]` endpoint strictly serves only files registered in the database, preventing unauthorized file access or path traversal. Sharp handles image processing.
 - Infra: Docker
-- Authentication: App-generated pseudorandom string, 20 characters long, as the single shared secret. On correct entry, a cookie is set that keeps the session persistently logged in (no repeated re-entry). Cooked managed with `iron-session` session library.
+- Authentication: App-generated pseudorandom string, 20 characters long, as the single shared secret. On correct entry, a cookie is set that keeps the session persistently logged in (no repeated re-entry). Cookie managed with `iron-session` session library.
 - App structure: `/customize` for admin/editing route (desktop-only) and `/` for the main flow for the end user (partner)
 
 ## Non-functional requirements

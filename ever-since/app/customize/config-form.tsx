@@ -2,15 +2,15 @@
 
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import Alert from './alert';
 
 interface ConfigFormProps {
   initialDate: string;
-  onDateChanged?: (newDate: string) => void;
 }
 
-export default function ConfigForm({ initialDate, onDateChanged }: ConfigFormProps) {
+export default function ConfigForm({ initialDate }: ConfigFormProps) {
   const router = useRouter();
-  const [date, setDate] = useState<string>(initialDate || '2025-09-30');
+  const [date, setDate] = useState<string>(initialDate);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -36,7 +36,6 @@ export default function ConfigForm({ initialDate, onDateChanged }: ConfigFormPro
       }
 
       setSuccessMessage('Anniversary date saved successfully.');
-      onDateChanged?.(data.config?.anniversaryDate ?? date);
       router.refresh();
     } catch {
       setErrorMessage('A network error occurred while saving. Please try again.');
@@ -57,39 +56,11 @@ export default function ConfigForm({ initialDate, onDateChanged }: ConfigFormPro
         <span className="text-xs text-muted">The kickoff date for your story</span>
       </div>
 
-      {/* Inline Feedback Alerts */}
       {errorMessage && (
-        <div
-          role="alert"
-          className="p-3 text-xs rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-center justify-between"
-        >
-          <span>{errorMessage}</span>
-          <button
-            type="button"
-            onClick={() => setErrorMessage(null)}
-            className="text-rose-500 hover:text-rose-800 font-bold ml-2"
-            aria-label="Dismiss error"
-          >
-            ✕
-          </button>
-        </div>
+        <Alert type="error" message={errorMessage} onDismiss={() => setErrorMessage(null)} />
       )}
-
       {successMessage && (
-        <div
-          role="status"
-          className="p-3 text-xs rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-between"
-        >
-          <span>{successMessage}</span>
-          <button
-            type="button"
-            onClick={() => setSuccessMessage(null)}
-            className="text-emerald-500 hover:text-emerald-800 font-bold ml-2"
-            aria-label="Dismiss message"
-          >
-            ✕
-          </button>
-        </div>
+        <Alert type="success" message={successMessage} onDismiss={() => setSuccessMessage(null)} />
       )}
 
       <form onSubmit={handleSubmit} className="flex items-center gap-3">

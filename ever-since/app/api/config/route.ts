@@ -1,27 +1,18 @@
 import { NextResponse } from 'next/server';
-import { customizeDbClient } from '@/lib/storage/customize-db';
-import { ZodError } from 'zod';
+import { readDb, updateDb } from '@/lib/storage/db';
+import { errorResponse } from '@/lib/api';
 
 /**
  * GET /api/config
  * Authenticated
- * Fetch anniversary date & story settings
+ * Fetch anniversary date
  */
 export async function GET() {
   try {
-    const config = await customizeDbClient.getConfig();
-    return NextResponse.json(
-      {
-        anniversaryDate: config.anniversaryDate,
-      },
-      { status: 200 }
-    );
+    const db = await readDb();
+    return NextResponse.json({ anniversaryDate: db.config.anniversaryDate }, { status: 200 });
   } catch (error) {
-    console.error('[API /api/config GET] Error retrieving config:', error);
-    return NextResponse.json(
-      { error: 'Failed to retrieve configuration' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'API /api/config GET');
   }
 }
 
@@ -36,35 +27,22 @@ export async function PUT(request: Request) {
     const { anniversaryDate } = body;
 
     if (typeof anniversaryDate !== 'string') {
-      return NextResponse.json(
-        { error: 'anniversaryDate must be a string' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'anniversaryDate must be a string' }, { status: 400 });
     }
 
-    const { config } = await customizeDbClient.updateAnniversaryDate(anniversaryDate);
+    const updated = await updateDb((db) => ({
+      ...db,
+      config: { anniversaryDate },
+    }));
 
     return NextResponse.json(
       {
         message: 'Anniversary date updated successfully',
-        config,
+        config: updated.config,
       },
       { status: 200 }
     );
   } catch (error) {
-    if (error instanceof ZodError) {
-      return NextResponse.json(
-        {
-          error: 'Invalid anniversary date format. Expected YYYY-MM-DD or empty string.',
-          details: error.flatten(),
-        },
-        { status: 400 }
-      );
-    }
-    console.error('[API /api/config PUT] Error updating config:', error);
-    return NextResponse.json(
-      { error: 'Failed to update configuration' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'API /api/config PUT');
   }
 }

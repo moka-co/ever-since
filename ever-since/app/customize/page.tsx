@@ -1,16 +1,13 @@
 import Link from 'next/link';
-import { mediaDbClient } from '@/lib/storage/media-db';
+import { readDb } from '@/lib/storage/db';
 import ConfigForm from './config-form';
 import MediaManager from './media-manager';
 import MemoriesManager from './memories-manager';
 
+export const dynamic = 'force-dynamic';
+
 export default async function CustomizePage() {
-  const db = await mediaDbClient.read().catch(() => ({
-    secret: { value: '00000000000000000000' },
-    config: { anniversaryDate: '2025-09-30' },
-    memories: [],
-    media: [],
-  }));
+  const db = await readDb();
 
   return (
     <main className="min-h-screen w-full py-10 px-4 md:px-8 flex justify-center items-start select-none">
@@ -52,7 +49,7 @@ export default async function CustomizePage() {
         {/* 1. Anniversary Date Config */}
         <ConfigForm initialDate={db.config.anniversaryDate} />
 
-        {/* 2. Media Management (Max 20 files, 10MB limit for photos, 50MB for videos) */}
+        {/* 2. Media Management */}
         <MediaManager initialMedia={db.media} />
 
         {/* 3 & 4. Memory Authoring & Memories Timeline List */}

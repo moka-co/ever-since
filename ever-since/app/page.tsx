@@ -1,8 +1,12 @@
-import { mediaDbClient } from '@/lib/storage/media-db';
+import { readDb } from '@/lib/storage/db';
 import TimelineClient from './timeline-client';
 
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
-  const db = await mediaDbClient.read().catch(() => ({
+  const db = await readDb().catch(() => ({
+    secret: { value: '' },
+    config: { anniversaryDate: '' },
     memories: [],
     media: [],
   }));

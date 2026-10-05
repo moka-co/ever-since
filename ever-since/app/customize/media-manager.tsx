@@ -1,31 +1,25 @@
 'use client';
 
-import { useState, useRef, useEffect, type FormEvent } from 'react';
+import { useState, useRef, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { MediaRecord } from '@/lib/storage/schema';
-import { MAX_MEDIA_COUNT } from '@/lib/media/validation';
+import { MAX_MEDIA_COUNT, isVideo } from '@/lib/media/validation';
+import Alert from './alert';
 
 interface MediaManagerProps {
   initialMedia: MediaRecord[];
-  onMediaChanged?: (media: MediaRecord[]) => void;
 }
 
-export default function MediaManager({ initialMedia, onMediaChanged }: MediaManagerProps) {
+export default function MediaManager({ initialMedia }: MediaManagerProps) {
   const router = useRouter();
   const [mediaList, setMediaList] = useState<MediaRecord[]>(initialMedia);
+  const [version, setVersion] = useState<number>(() => Date.now());
   const [isUploading, setIsUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [mountTime, setMountTime] = useState<number | null>(null);
-  const [mediaVersions, setMediaVersions] = useState<Record<string, number>>({});
-
-  useEffect(() => {
-    setMountTime(Date.now());
-  }, []);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const isQuotaFull = mediaList.length >= MAX_MEDIA_COUNT;
 
   async function handleUpload(event: FormEvent<HTMLFormElement>) {
@@ -61,15 +55,10 @@ export default function MediaManager({ initialMedia, onMediaChanged }: MediaMana
       const newMedia = data.media as MediaRecord;
       const updated = [...mediaList, newMedia];
       setMediaList(updated);
-      setMediaVersions((prev) => ({
-        ...prev,
-        [newMedia.id]: Date.now(),
-      }));
-      onMediaChanged?.(updated);
+      setVersion(Date.now());
       router.refresh();
       setSuccessMessage(`Successfully uploaded ${newMedia.filename}`);
 
-      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -103,12 +92,6 @@ export default function MediaManager({ initialMedia, onMediaChanged }: MediaMana
 
       const updated = mediaList.filter((m) => m.id !== id);
       setMediaList(updated);
-      setMediaVersions((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-      onMediaChanged?.(updated);
       router.refresh();
       setSuccessMessage('Media deleted successfully.');
     } catch {
@@ -116,11 +99,6 @@ export default function MediaManager({ initialMedia, onMediaChanged }: MediaMana
     } finally {
       setDeletingId(null);
     }
-  }
-
-  function isVideo(filename: string): boolean {
-    const ext = filename.split('.').pop()?.toLowerCase();
-    return ext === 'mp4' || ext === 'webm' || ext === 'mov';
   }
 
   return (
@@ -148,39 +126,11 @@ export default function MediaManager({ initialMedia, onMediaChanged }: MediaMana
         </span>
       </div>
 
-      {/* Inline Feedback Alerts */}
       {errorMessage && (
-        <div
-          role="alert"
-          className="p-3 text-xs rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-center justify-between"
-        >
-          <span>{errorMessage}</span>
-          <button
-            type="button"
-            onClick={() => setErrorMessage(null)}
-            className="text-rose-500 hover:text-rose-800 font-bold ml-2"
-            aria-label="Dismiss error"
-          >
-            ✕
-          </button>
-        </div>
+        <Alert type="error" message={errorMessage} onDismiss={() => setErrorMessage(null)} />
       )}
-
       {successMessage && (
-        <div
-          role="status"
-          className="p-3 text-xs rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-between"
-        >
-          <span>{successMessage}</span>
-          <button
-            type="button"
-            onClick={() => setSuccessMessage(null)}
-            className="text-emerald-500 hover:text-emerald-800 font-bold ml-2"
-            aria-label="Dismiss message"
-          >
-            ✕
-          </button>
-        </div>
+        <Alert type="success" message={successMessage} onDismiss={() => setSuccessMessage(null)} />
       )}
 
       {/* Upload Form */}
@@ -217,25 +167,19 @@ export default function MediaManager({ initialMedia, onMediaChanged }: MediaMana
                 className="flex items-center justify-between p-3 rounded-xl border border-[#E5E7EB] bg-gray-50/50 hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  {/* Thumbnail / Tag */}
                   <div className="w-10 h-10 rounded-lg bg-gray-200 border border-[#E5E7EB] overflow-hidden flex items-center justify-center shrink-0">
                     {video ? (
                       <span className="text-[10px] font-bold text-muted uppercase">VID</span>
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={
-                          (mediaVersions[item.id] ?? mountTime) !== null && (mediaVersions[item.id] ?? mountTime) !== undefined
-                            ? `/api/media/${item.filename}?t=${mediaVersions[item.id] ?? mountTime}`
-                            : `/api/media/${item.filename}`
-                        }
+                        src={`/api/media/${item.filename}?t=${version}`}
                         alt={item.filename}
                         className="w-full h-full object-cover"
                       />
                     )}
                   </div>
 
-                  {/* Metadata */}
                   <div className="flex flex-col">
                     <span className="text-sm font-medium text-foreground">{item.filename}</span>
                     <span className="text-[11px] text-muted">
@@ -248,7 +192,6 @@ export default function MediaManager({ initialMedia, onMediaChanged }: MediaMana
                   </div>
                 </div>
 
-                {/* Delete button */}
                 <button
                   type="button"
                   onClick={() => handleDelete(item.id)}

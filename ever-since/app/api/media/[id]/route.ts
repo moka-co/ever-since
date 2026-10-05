@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { readFile, unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { mediaDbClient } from '@/lib/storage/media-db';
-import { getMimeType, MAX_MEDIA_COUNT } from '@/lib/media/validation';
-
-const MEDIA_DIR = resolve(process.cwd(), 'media');
+import { readDb, updateDb } from '@/lib/storage/db';
+import { getMimeType, MEDIA_DIR } from '@/lib/media/validation';
+import { errorResponse } from '@/lib/api';
+import type { MediaRecord } from '@/lib/storage/schema';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -13,14 +13,21 @@ interface RouteContext {
 /**
  * GET /api/media/[id]
  * Authenticated
- * Serves media binary directly from the media/ directory.
+ * Serves media binary directly from the media/ directory, strictly ensuring the file is registered in db.json.
  */
 export async function GET(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const mediaRecord = await mediaDbClient.getMediaById(id);
+    const db = await readDb();
+    const mediaRecord = db.media.find(
+      (m) => m.id === id || m.filename.toLowerCase() === id.toLowerCase()
+    );
 
-    const filename = mediaRecord ? mediaRecord.filename : id;
+    if (!mediaRecord) {
+      return NextResponse.json({ error: 'Media not found' }, { status: 404 });
+    }
+
+    const filename = mediaRecord.filename;
     const filePath = resolve(MEDIA_DIR, filename);
 
     try {
@@ -38,8 +45,7 @@ export async function GET(request: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Media file not found on disk' }, { status: 404 });
     }
   } catch (error) {
-    console.error('[API /api/media/[id] GET] Error serving media:', error);
-    return NextResponse.json({ error: 'Server error serving media' }, { status: 500 });
+    return errorResponse(error, 'API /api/media/[id] GET');
   }
 }
 
@@ -51,34 +57,35 @@ export async function GET(request: Request, context: RouteContext) {
 export async function DELETE(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const { deleted, db } = await mediaDbClient.deleteMedia(id);
+    let deleted: MediaRecord | null = null;
+
+    await updateDb((db) => {
+      const item = db.media.find((m) => m.id === id);
+      if (!item) return db;
+      deleted = item;
+      return {
+        ...db,
+        media: db.media.filter((m) => m.id !== id),
+      };
+    });
 
     if (!deleted) {
       return NextResponse.json({ error: `Media with ID '${id}' not found` }, { status: 404 });
     }
 
-    // Remove file from disk
-    const filePath = resolve(MEDIA_DIR, deleted.filename);
+    const filePath = resolve(MEDIA_DIR, (deleted as MediaRecord).filename);
     await unlink(filePath).catch((err) => {
       console.warn(`[API /api/media/[id] DELETE] Could not unlink ${filePath}:`, err.message);
     });
-
-    const used = db.media.length;
 
     return NextResponse.json(
       {
         message: `Media '${id}' deleted successfully`,
         id,
-        quota: {
-          total: MAX_MEDIA_COUNT,
-          used,
-          remaining: Math.max(0, MAX_MEDIA_COUNT - used),
-        },
       },
       { status: 200 }
     );
   } catch (error) {
-    console.error('[API /api/media/[id] DELETE] Error deleting media:', error);
-    return NextResponse.json({ error: 'Server error deleting media' }, { status: 500 });
+    return errorResponse(error, 'API /api/media/[id] DELETE');
   }
 }

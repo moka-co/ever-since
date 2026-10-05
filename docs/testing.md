@@ -13,11 +13,12 @@ Given the project's nature—a temporary, highly interactive, and emotional web 
 - **Main Flow (`/`):** Simulate the base user experience, swiping/clicking through the chronological memories, and rewinding to the start.
 
 ### Unit & Integration Testing
-**Recommended Tool:** Vitest
+**Recommended Tool:** tsx / Vitest
 **Scope:**
-- **Storage Layer (`lib/storage/`):** Ensure the flat JSON database (`db.json`) reads and writes correctly. Verify that the write queue (`queue.ts`) successfully serializes concurrent writes to avoid data corruption.
+- **Storage Layer (`lib/storage/`):** Ensure the flat JSON database (`db.json`) reads and writes correctly via `readDb()` and `updateDb()`.
+- **Hermetic Test Isolation:** Tests run in isolated temporary operating system directories (via `useTempDb` in `tests/helpers.ts`) using separate DB and media folders (`process.env.DB_PATH` / `process.env.MEDIA_DIR`). They **never touch the development DB (`data/db.json`)**, run completely self-contained, and do not require an active server process.
 - **Data Validation:** Validate that Zod schemas correctly catch invalid data payloads on API endpoints and during disk writes.
-- **API Logic:** Test Next.js API endpoints, specifically the rate-limiting logic on `/api/auth/login` and the 20-file quota limit on `/api/media`.
+- **API Logic:** Test Next.js API endpoints, specifically the rate-limiting logic on `/api/auth/login`, media serving security on `/api/media/[id]`, and the 20-file quota limit on `/api/media`.
 
 ### Manual Testing & QA
 **Scope:**
@@ -57,7 +58,16 @@ To maintain a robust and maintainable test suite, balance your testing layers to
 - **Avoiding the End-to-End-Only Antipattern:** Do not rely heavily on Playwright to test every single edge case, validation error, or business logic permutation. E2E tests are slow, prone to flakiness, and expensive to maintain. Instead, reserve E2E tests for critical user journeys (e.g., successful login, adding a memory, scrolling the timeline) and push the testing of edge cases and logic combinations down to fast, isolated unit tests in Vitest.
 - **Avoiding the Low-Level-Only Antipattern:** Do not rely exclusively on unit tests. While they provide fast feedback, they lack the confidence that integrated system layers work together out-of-process. Ensure you always have Playwright E2E tests covering the core flows to guarantee that the UI, API, and local JSON storage interact correctly in a real-world scenario.
 
-## Running Tests
-*(Once configured)*
-- **Unit Tests:** `npm run test` (runs Vitest)
+## Running Tests & Checks
+
+The test suite runs against hermetic temporary database fixtures (`useTempDb` in `tests/helpers.ts`) and does not touch production data or require an active server process.
+
+- **Run all automated tests:** `npm test`
+- **Run linting:** `npm run lint`
+- **Run typecheck:** `npm run typecheck`
+- **Full pre-commit check (lint + typecheck + test):** `npm run check`
 - **E2E Tests:** `npm run test:e2e` (runs Playwright against a local build)
+
+### Pre-commit Hook & CI/CD
+- **Pre-commit hook:** Managed via `simple-git-hooks` configured in `ever-since/package.json`. It runs `npm run lint && npm test` automatically on `git commit`. (Bypass for emergencies: `git commit --no-verify`).
+- **CI/CD:** GitHub Actions workflow in `.github/workflows/ci.yml` runs `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build` on every push and pull request.

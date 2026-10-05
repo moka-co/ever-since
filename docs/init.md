@@ -25,8 +25,8 @@ npx create-next-app@latest ever-since --typescript --tailwind --eslint --app --s
 3. **Open the application**
    Navigate to [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Environment Variables
-On backend startup, a 20-character secret is generated and saved in a `.env` file in the root directory. This secret is used for authentication and cookie encryption (via `iron-session`). Note that on each restart, a new secret is generated and the old one is invalidated, logging out all active sessions. This is expected behavior.
+## Startup Secret
+On backend startup, a 20-character secret is generated and saved directly in `data/db.json`. This secret is used for authentication and cookie encryption (via `iron-session`). Note that on each restart or termination, the secret is invalidated, logging out all active sessions. This is expected behavior.
 
 ## Docker Setup (Production)
 The application is designed to be run using Docker with a multi-stage build (`deps` -> `build` -> `runtime`). 

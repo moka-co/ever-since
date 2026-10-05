@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { memoryDbClient } from '@/lib/storage/memory-db';
-import { ZodError } from 'zod';
+import { updateDb } from '@/lib/storage/db';
+import { errorResponse } from '@/lib/api';
+import type { MemoryRecord } from '@/lib/storage/schema';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -15,14 +16,26 @@ export async function PUT(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
     const body = await request.json().catch(() => ({}));
+    let updatedMemory: MemoryRecord | null = null;
 
-    const { memory } = await memoryDbClient.updateMemory(id, {
-      heading: body.heading !== undefined ? body.heading : undefined,
-      text: body.text !== undefined ? body.text : undefined,
-      mediaId: body.mediaId !== undefined ? body.mediaId : undefined,
+    await updateDb((db) => {
+      const existing = db.memories.find((m) => m.id === id);
+      if (!existing) return db;
+
+      updatedMemory = {
+        id: existing.id,
+        heading: body.heading !== undefined ? body.heading : existing.heading,
+        text: body.text !== undefined ? body.text : existing.text,
+        mediaId: body.mediaId !== undefined ? body.mediaId : existing.mediaId,
+      };
+
+      return {
+        ...db,
+        memories: db.memories.map((m) => (m.id === id ? updatedMemory! : m)),
+      };
     });
 
-    if (!memory) {
+    if (!updatedMemory) {
       return NextResponse.json(
         { error: `Memory with ID '${id}' not found` },
         { status: 404 }
@@ -32,25 +45,12 @@ export async function PUT(request: Request, context: RouteContext) {
     return NextResponse.json(
       {
         message: `Memory '${id}' updated successfully`,
-        memory,
+        memory: updatedMemory,
       },
       { status: 200 }
     );
   } catch (error) {
-    if (error instanceof ZodError) {
-      return NextResponse.json(
-        {
-          error: 'Invalid memory update payload. Header and text must be 100 characters or fewer.',
-          details: error.flatten(),
-        },
-        { status: 400 }
-      );
-    }
-    console.error('[API /api/memories/[id] PUT] Error updating memory:', error);
-    return NextResponse.json(
-      { error: 'Failed to update memory item' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'API /api/memories/[id] PUT');
   }
 }
 
@@ -62,9 +62,19 @@ export async function PUT(request: Request, context: RouteContext) {
 export async function DELETE(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const { deleted } = await memoryDbClient.deleteMemory(id);
+    let deletedMemory: MemoryRecord | null = null;
 
-    if (!deleted) {
+    await updateDb((db) => {
+      const existing = db.memories.find((m) => m.id === id);
+      if (!existing) return db;
+      deletedMemory = existing;
+      return {
+        ...db,
+        memories: db.memories.filter((m) => m.id !== id),
+      };
+    });
+
+    if (!deletedMemory) {
       return NextResponse.json(
         { error: `Memory with ID '${id}' not found` },
         { status: 404 }
@@ -79,10 +89,6 @@ export async function DELETE(request: Request, context: RouteContext) {
       { status: 200 }
     );
   } catch (error) {
-    console.error('[API /api/memories/[id] DELETE] Error deleting memory:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete memory item' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'API /api/memories/[id] DELETE');
   }
 }

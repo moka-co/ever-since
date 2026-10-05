@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { motion, useAnimation, PanInfo, AnimatePresence } from "framer-motion";
+import { useState, useRef } from "react";
+import { motion, PanInfo, AnimatePresence } from "framer-motion";
 import type { MemoryRecord, MediaRecord } from "@/lib/storage/schema";
+import { isVideo } from "@/lib/media/validation";
 
 interface TimelineClientProps {
   memories: MemoryRecord[];
@@ -10,14 +11,10 @@ interface TimelineClientProps {
 }
 
 export default function TimelineClient({ memories, media }: TimelineClientProps) {
+  const [version] = useState(() => Date.now());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isRewinding, setIsRewinding] = useState(false);
-  const [mountTime, setMountTime] = useState<number | null>(null);
   const rewindTimeout = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    setMountTime(Date.now());
-  }, []);
 
   // Dots Logic (Instagram style sliding window)
   const maxDots = 5;
@@ -64,8 +61,8 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
   const activeMedia = activeMemory?.mediaId ? media.find((m) => m.id === activeMemory.mediaId) : null;
   const showStackPeek = currentIndex < memories.length - 1;
   const mediaSrc = activeMedia
-    ? mountTime
-      ? `/api/media/${activeMedia.filename}?t=${mountTime}`
+    ? version
+      ? `/api/media/${activeMedia.filename}?t=${version}`
       : `/api/media/${activeMedia.filename}`
     : '';
 
@@ -146,7 +143,7 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
                 >
                   <figure className="w-full h-full flex items-center justify-center relative bg-white">
                     {activeMedia ? (
-                      activeMedia.filename.match(/\.(mp4|webm|ogg)$/i) ? (
+                      isVideo(activeMedia.filename) ? (
                         <video src={mediaSrc} className="w-full h-full object-cover" autoPlay loop muted playsInline />
                       ) : (
                         // eslint-disable-next-line @next/next/no-img-element
