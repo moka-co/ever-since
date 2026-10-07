@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #FFF0F3;
+  --background: #fffafa;
   --background-base: #FFFFFF;
   --foreground: #1E1B24;
   --muted: #6B7280;
@@ -34,8 +34,11 @@
 body {
   min-height: 100vh;
   min-height: 100dvh;
-  background-color: #FFF0F3;
-  background-image: radial-gradient(at 50% 0%, rgba(244, 114, 182, 0.35) 0%, rgba(244, 114, 182, 0) 75%);
+  background-color: #fffafa;
+  background-image:
+    radial-gradient(60% 50% at 15% 10%, #ffd9e2 0%, transparent 70%),
+    radial-gradient(50% 45% at 90% 25%, #ffe8d6 0%, transparent 70%),
+    radial-gradient(55% 50% at 50% 100%, #e9ddff 0%, transparent 70%);
   background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-sans);

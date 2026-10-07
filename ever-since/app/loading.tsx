@@ -6,69 +6,54 @@ export default function Loading() {
       aria-label="Loading memory timeline"
       className="min-h-screen relative flex flex-col items-center justify-center p-6 md:p-12 select-none overflow-x-hidden"
     >
-      {/* Navigation arrows skeleton */}
-      <div
-        aria-hidden="true"
-        className="fixed left-4 md:left-8 top-1/2 -translate-y-1/2 w-11 h-11 md:w-12 md:h-12 rounded-full bg-[#E5E7EB]/60 flex items-center justify-center shadow-xs"
-      >
-        <Skeleton className="w-4 h-4 rounded-full" />
-      </div>
-
-      <div
-        aria-hidden="true"
-        className="fixed right-4 md:right-8 top-1/2 -translate-y-1/2 w-11 h-11 md:w-12 md:h-12 rounded-full bg-[#E5E7EB]/60 flex items-center justify-center shadow-xs"
-      >
-        <Skeleton className="w-4 h-4 rounded-full" />
-      </div>
-
       <section
         aria-label="Loading memory timeline card"
-        className="flex flex-col items-center justify-center w-full max-w-4xl z-0"
+        className="flex flex-col items-center justify-center w-full max-w-lg z-0"
       >
         {/* Memory progress dot indicators skeleton */}
-        <div className="mb-8 md:mb-12">
+        <div className="mb-4 md:mb-5">
           <div className="flex items-center justify-center gap-2 h-4">
-            <Skeleton className="w-1.5 h-1.5 rounded-full" />
-            <Skeleton className="w-1.5 h-1.5 rounded-full" />
-            <Skeleton className="w-2 h-2 rounded-full bg-foreground/20" />
-            <Skeleton className="w-1.5 h-1.5 rounded-full" />
-            <Skeleton className="w-1.5 h-1.5 rounded-full" />
+            <div className="w-2 h-2 rounded-full bg-[#F1D6DE]/60" />
+            <div className="w-2 h-2 rounded-full bg-[#F1D6DE]/60" />
+            <div className="w-6 h-2 rounded-full bg-[#D4537E]/60 animate-pulse" />
+            <div className="w-2 h-2 rounded-full bg-[#F1D6DE]/60" />
+            <div className="w-2 h-2 rounded-full bg-[#F1D6DE]/60" />
           </div>
         </div>
 
-        {/* Card container + Narrative text */}
-        <div className="flex flex-col md:flex-row items-center md:items-start justify-center gap-8 md:gap-14 w-full">
-          <div className="flex flex-col items-start">
-            <div className="relative w-72 h-72 sm:w-84 sm:h-84 md:w-96 md:h-96">
-              {/* Stack peek clue */}
-              <div
-                aria-hidden="true"
-                className="absolute inset-0 translate-x-3 translate-y-1 rounded-[32px] border border-[#E5E7EB] bg-[#EBECEF]/60 -z-10"
-              />
+        {/* Card container with stack cue */}
+        <div className="relative w-80 sm:w-96 md:w-[420px] max-w-full">
+          {/* Stack peek cue */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 translate-x-3.5 translate-y-2 rounded-[36px] md:rounded-[40px] border border-[#ECDCE3] bg-[#FCF8FA] shadow-[0_10px_35px_rgba(255,150,170,0.18)] -z-10"
+          />
 
-              {/* Main memory card */}
-              <div className="w-full h-full rounded-[32px] bg-white border border-[#E5E7EB] shadow-xs overflow-hidden p-3 flex items-center justify-center">
-                <Skeleton className="w-full h-full rounded-[24px]" />
-              </div>
+          {/* Main memory card */}
+          <div className="w-full rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_12px_40px_rgba(255,150,170,0.22)] overflow-hidden flex flex-col p-4 sm:p-5">
+            {/* Media figure skeleton */}
+            <div className="relative w-full aspect-square rounded-[26px] md:rounded-[28px] overflow-hidden bg-[#FAF7F8] flex items-center justify-center shrink-0">
+              <Skeleton className="w-full h-full rounded-[26px] md:rounded-[28px]" />
             </div>
 
-            {/* Rewind button skeleton */}
-            <div
-              aria-hidden="true"
-              className="mt-3 w-10 h-10 rounded-full bg-white border border-[#E5E7EB] shadow-xs flex items-center justify-center"
-            >
-              <Skeleton className="w-4 h-4 rounded-full" />
+            {/* Narrative text skeleton */}
+            <div className="flex flex-col items-center text-center justify-center pt-4 pb-1 px-2 w-full gap-2">
+              <Skeleton className="h-6 w-3/4 rounded-lg" />
+              <Skeleton className="h-4 w-5/6 rounded-md" />
             </div>
           </div>
+        </div>
 
-          {/* Narrative heading & description skeleton */}
-          <div className="flex flex-col items-start text-left justify-start pt-2 md:pt-6 max-w-xs md:max-w-sm w-full gap-3">
-            <Skeleton className="h-7 sm:h-8 w-4/5 rounded-xl" />
-            <div className="flex flex-col gap-2 w-full mt-1">
-              <Skeleton className="h-4 w-full rounded-md" />
-              <Skeleton className="h-4 w-11/12 rounded-md" />
-              <Skeleton className="h-4 w-2/3 rounded-md" />
-            </div>
+        {/* Compact bottom toolbar skeleton */}
+        <div className="flex items-center justify-center gap-4 mt-6 z-10">
+          <div className="w-12 h-12 rounded-full bg-white border border-[#F1E8EC] shadow-sm flex items-center justify-center">
+            <Skeleton className="w-4 h-4 rounded-full" />
+          </div>
+          <div className="w-12 h-12 rounded-full bg-white border border-[#F1E8EC] shadow-sm flex items-center justify-center">
+            <Skeleton className="w-4 h-4 rounded-full" />
+          </div>
+          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[#F472B6]/40 to-[#FB7185]/40 shadow-sm flex items-center justify-center">
+            <Skeleton className="w-4 h-4 rounded-full bg-white/60" />
           </div>
         </div>
       </section>
