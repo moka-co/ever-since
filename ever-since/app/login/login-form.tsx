@@ -111,24 +111,27 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
   }
 
   /* -------------------------------------------------------------------------- */
-  /* VIEW 1: Password Authentication Screen (Mockup 1)                         */
+  /* VIEW 1: Password Authentication Screen                                     */
   /* -------------------------------------------------------------------------- */
   if (!isAuthenticated) {
     return (
       <section
         aria-labelledby="password-heading"
-        className="w-full max-w-sm rounded-2xl border border-[#E5E7EB] bg-white p-8 shadow-sm flex flex-col items-center justify-center text-center"
+        className="w-80 sm:w-96 max-w-full rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_12px_40px_rgba(255,150,170,0.22)] p-8 sm:p-10 flex flex-col items-center justify-center text-center select-none"
       >
         <h1
           id="password-heading"
-          className="text-xl font-medium text-foreground text-center mb-5"
+          className="text-2xl font-bold text-foreground text-center w-full mb-1"
         >
           Insert the password
         </h1>
+        <p className="text-xs text-muted mb-6">
+          Ask your nerd for the secret key
+        </p>
 
         <form
           onSubmit={handlePasswordSubmit}
-          className="w-full flex flex-col items-center gap-4"
+          className="w-full flex flex-col items-center"
         >
           <label htmlFor="secret-input" className="sr-only">
             20-character shared secret
@@ -141,23 +144,29 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
             minLength={20}
             maxLength={20}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (hasError) setHasError(false);
+            }}
             disabled={isSubmitting}
             autoFocus
             required
-            className="w-full text-center rounded-lg border border-[#E5E7EB] bg-white px-4 py-2.5 text-base font-normal text-foreground placeholder:text-muted/70 focus:border-cta focus:outline-none focus:ring-1 focus:ring-cta transition-colors"
+            className="w-full text-center rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8] px-4 py-3 text-base font-medium text-foreground placeholder:text-muted/60 focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs transition-all"
           />
 
-          {hasError && (
-            <p role="status" className="text-xs text-rose-500 text-center">
-              Incorrect password, try again!
-            </p>
-          )}
+          {/* Reserved space for error message to avoid layout jump */}
+          <div className="min-h-5 my-3 flex items-center justify-center">
+            {hasError && (
+              <p role="status" className="text-xs text-rose-500 font-medium text-center">
+                Incorrect password, try again!
+              </p>
+            )}
+          </div>
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="rounded-lg bg-[#1E1B24] hover:bg-[#2D2837] text-white px-5 py-2 text-xs font-medium transition-colors disabled:opacity-50 shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
+            className="rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white px-7 py-2.5 text-sm font-semibold transition-all shadow-[0_4px_16px_rgba(244,114,182,0.4)] hover:shadow-[0_6px_20px_rgba(244,114,182,0.55)] hover:scale-105 active:scale-95 disabled:opacity-50 disabled:from-gray-300 disabled:to-gray-300 disabled:shadow-none disabled:hover:scale-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
           >
             {isSubmitting ? 'Checking...' : 'Log in'}
           </button>
@@ -167,18 +176,18 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
   }
 
   /* -------------------------------------------------------------------------- */
-  /* VIEW 2: Date Entry Screen (Mockup 2 - Shown only after authenticated)     */
+  /* VIEW 2: Date Entry Screen (Shown only after authenticated)               */
   /* -------------------------------------------------------------------------- */
   return (
-    <div className="flex flex-col md:flex-row items-center justify-center gap-6 w-full max-w-2xl">
+    <div className="flex flex-col md:flex-row items-center justify-center gap-8 w-full max-w-4xl">
       {/* Left Column: Date Input Card */}
       <section
         aria-labelledby="story-initiation-heading"
-        className="w-full max-w-xs sm:max-w-sm rounded-2xl border border-[#E5E7EB] bg-white/90 p-8 shadow-xs flex flex-col items-center text-center"
+        className="w-80 sm:w-96 max-w-full rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_12px_40px_rgba(255,150,170,0.22)] p-7 sm:p-8 flex flex-col items-center text-center select-none"
       >
         <h2
           id="story-initiation-heading"
-          className="text-2xl font-bold text-foreground text-left w-full mb-6"
+          className="text-2xl font-bold text-foreground text-center w-full mb-6"
         >
           Ever Since...
         </h2>
@@ -197,10 +206,11 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
               aria-label="Day"
               value={day}
               onChange={handleDayChange}
-              className="w-14 h-12 text-center rounded-lg border border-[#E5E7EB] bg-white text-base font-medium text-foreground focus:border-cta focus:outline-none focus:ring-1 focus:ring-cta"
+              className="w-14 h-12 text-center rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8] text-base font-semibold text-foreground focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta transition-colors"
               autoFocus
               required
             />
+            <span className="text-muted/60 font-light text-lg">/</span>
             <input
               ref={monthRef}
               type="text"
@@ -212,9 +222,10 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
               aria-label="Month"
               value={month}
               onChange={handleMonthChange}
-              className="w-14 h-12 text-center rounded-lg border border-[#E5E7EB] bg-white text-base font-medium text-foreground focus:border-cta focus:outline-none focus:ring-1 focus:ring-cta"
+              className="w-14 h-12 text-center rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8] text-base font-semibold text-foreground focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta transition-colors"
               required
             />
+            <span className="text-muted/60 font-light text-lg">/</span>
             <input
               ref={yearRef}
               type="text"
@@ -226,12 +237,12 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
               aria-label="Year"
               value={year}
               onChange={handleYearChange}
-              className="w-20 h-12 text-center rounded-lg border border-[#E5E7EB] bg-white text-base font-medium text-foreground focus:border-cta focus:outline-none focus:ring-1 focus:ring-cta"
+              className="w-20 h-12 text-center rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8] text-base font-semibold text-foreground focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta transition-colors"
               required
             />
           </fieldset>
 
-          {/* Space for errors message */}
+          {/* Space for error message */}
           <div className="min-h-5 mb-3 flex items-center justify-center">
             <span
               className={`text-xs ${
@@ -242,12 +253,12 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
             </span>
           </div>
 
-          {/* Button */}
+          {/* Gradient Primary Action Button matching main flow style */}
           <button
             type="submit"
-            className="rounded-lg bg-[#1E1B24] hover:bg-[#2D2837] text-white px-6 py-2 text-sm font-medium transition-colors shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
+            className="rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white px-7 py-2.5 text-sm font-semibold transition-all shadow-[0_4px_16px_rgba(244,114,182,0.4)] hover:shadow-[0_6px_20px_rgba(244,114,182,0.55)] hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
           >
-            Button
+            Start Story
           </button>
 
           {/* Hint: our date */}
@@ -255,37 +266,39 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
         </form>
       </section>
 
-      {/* Right Column: Media / Meme Box */}
+      {/* Right Column: Media / Seal Card */}
       <aside
         aria-label="Meme or photo"
-        className="w-full max-w-xs sm:max-w-sm h-64 sm:h-72 rounded-2xl bg-[#D1D5DB]/70 border border-[#E5E7EB] flex items-center justify-center overflow-hidden text-center shadow-xs"
+        className="w-80 sm:w-96 max-w-full rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_12px_40px_rgba(255,150,170,0.22)] p-4 sm:p-5 flex flex-col items-center justify-center text-center overflow-hidden"
       >
-        {sealMedia ? (
-          sealMedia.filename.toLowerCase().match(/\.(mp4|webm|mov)$/) ? (
-            <video
-              src={`/api/media/${sealMedia.filename}`}
-              className="w-full h-full object-cover"
-              autoPlay
-              loop
-              muted
-              playsInline
-            />
+        <div className="relative w-full aspect-square rounded-[26px] md:rounded-[28px] overflow-hidden bg-[#FAF7F8] flex items-center justify-center">
+          {sealMedia ? (
+            sealMedia.filename.toLowerCase().match(/\.(mp4|webm|mov)$/) ? (
+              <video
+                src={`/api/media/${sealMedia.filename}`}
+                className="w-full h-full object-cover"
+                autoPlay
+                loop
+                muted
+                playsInline
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`/api/media/${sealMedia.filename}`}
+                alt="Seal photo or meme"
+                className="w-full h-full object-cover"
+              />
+            )
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={`/api/media/${sealMedia.filename}`}
-              alt="Seal photo or meme"
+              src="/e9d4a14432afcc3f2f8e21cb5608cf14.jpg"
+              alt="Default seal photo"
               className="w-full h-full object-cover"
             />
-          )
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src="/e9d4a14432afcc3f2f8e21cb5608cf14.jpg"
-            alt="Default seal photo"
-            className="w-full h-full object-cover"
-          />
-        )}
+          )}
+        </div>
       </aside>
     </div>
   );

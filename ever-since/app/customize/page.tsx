@@ -15,7 +15,7 @@ export default async function CustomizePage() {
       {/* Mobile Notice (< 1024px) */}
       <section
         aria-label="Desktop required notice"
-        className="flex lg:hidden flex-col items-center justify-center text-center p-8 bg-white rounded-2xl border border-[#E5E7EB] shadow-sm max-w-sm my-auto"
+        className="flex lg:hidden flex-col items-center justify-center text-center p-8 bg-white rounded-[32px] border border-[#F1E8EC] shadow-[0_12px_40px_rgba(255,150,170,0.22)] max-w-sm my-auto"
       >
         <h1 className="text-xl font-bold text-foreground mb-2">Desktop Only</h1>
         <p className="text-sm text-muted mb-4">
@@ -23,16 +23,16 @@ export default async function CustomizePage() {
         </p>
         <Link
           href="/"
-          className="text-xs font-medium text-cta hover:text-cta-hover transition-colors"
+          className="text-xs font-semibold text-cta hover:text-cta-hover transition-colors"
         >
           ← Return to Main Flow
         </Link>
       </section>
 
-      {/* Desktop Admin Dashboard (>= 1024px) - Single Long Vertical Card */}
-      <div className="hidden lg:flex flex-col w-full max-w-3xl rounded-[28px] border border-[#E5E7EB] bg-white p-10 md:p-12 shadow-md gap-10">
+      {/* Desktop Admin Dashboard (>= 1024px) - Single Elevated Card */}
+      <div className="hidden lg:flex flex-col w-full max-w-3xl rounded-[36px] md:rounded-[40px] border border-[#F1E8EC] bg-white p-10 md:p-12 shadow-[0_12px_40px_rgba(255,150,170,0.22)] gap-10">
         {/* Header */}
-        <header className="flex items-center justify-between pb-6 border-b border-[#E5E7EB]">
+        <header className="flex items-center justify-between pb-6 border-b border-[#C4A2B2]">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Customize EverSince</h1>
             <p className="text-sm text-muted mt-1">
@@ -41,25 +41,34 @@ export default async function CustomizePage() {
           </div>
           <Link
             href="/"
-            className="text-sm font-medium text-foreground hover:text-cta bg-gray-50 hover:bg-gray-100 border border-[#E5E7EB] px-4 py-2 rounded-lg transition-colors shadow-2xs"
+            className="text-sm font-semibold text-foreground hover:text-cta bg-[#FAF7F8] hover:bg-white border border-[#ECDCE3] px-4 py-2 rounded-full transition-all shadow-2xs hover:shadow-xs"
           >
             ← View Main Flow
           </Link>
         </header>
 
-        {/* 1. Anniversary Date Config */}
-        <ConfigForm initialDate={db.config.anniversaryDate} />
+        {/* Story Initiation Sub-Section: 2 Columns (Anniversary Date & First Photo) */}
+        <section
+          aria-label="Story Initiation and Login Configuration"
+          className="pb-8 border-b border-[#C4A2B2]"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 divide-y md:divide-y-0 md:divide-x divide-[#C4A2B2]">
+            <div className="flex flex-col">
+              <ConfigForm initialDate={db.config.anniversaryDate} />
+            </div>
+            <div className="flex flex-col pt-6 md:pt-0 md:pl-8">
+              <SealPhotoManager
+                initialSealMediaId={db.config.sealMediaId ?? null}
+                mediaList={db.media}
+              />
+            </div>
+          </div>
+        </section>
 
-        {/* 2. Login Screen Seal Photo / Meme Config */}
-        <SealPhotoManager
-          initialSealMediaId={db.config.sealMediaId ?? null}
-          mediaList={db.media}
-        />
-
-        {/* 3. Media Management */}
+        {/* Media Management */}
         <MediaManager initialMedia={db.media} />
 
-        {/* 4 & 5. Memory Authoring & Memories Timeline List */}
+        {/* Memory Authoring & Memories Timeline List */}
         <MemoriesManager initialMemories={db.memories} mediaList={db.media} />
       </div>
     </main>

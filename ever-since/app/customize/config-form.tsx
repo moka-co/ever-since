@@ -45,15 +45,12 @@ export default function ConfigForm({ initialDate }: ConfigFormProps) {
   }
 
   return (
-    <section
-      aria-labelledby="config-heading"
-      className="flex flex-col gap-4 pb-8 border-b border-[#E5E7EB]"
-    >
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-3.5">
+      <div className="flex flex-col gap-1">
         <h2 id="config-heading" className="text-lg font-semibold text-foreground">
           Anniversary Date
         </h2>
-        <span className="text-xs text-muted">The kickoff date for your story</span>
+        <p className="text-xs text-muted">The kickoff date for your story</p>
       </div>
 
       {errorMessage && (
@@ -63,23 +60,23 @@ export default function ConfigForm({ initialDate }: ConfigFormProps) {
         <Alert type="success" message={successMessage} onDismiss={() => setSuccessMessage(null)} />
       )}
 
-      <form onSubmit={handleSubmit} className="flex items-center gap-3">
+      <form onSubmit={handleSubmit} className="flex flex-wrap sm:flex-nowrap items-center gap-3">
         <input
           type="date"
           name="anniversaryDate"
           value={date}
           onChange={(e) => setDate(e.target.value)}
           disabled={isSaving}
-          className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-foreground focus:border-cta focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs disabled:opacity-50"
+          className="rounded-xl border border-[#ECDCE3] bg-[#FAF7F8] px-3.5 py-2 text-sm text-foreground focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs disabled:opacity-50 transition-colors w-full sm:w-auto"
         />
         <button
           type="submit"
           disabled={isSaving}
-          className="rounded-lg bg-[#1E1B24] hover:bg-[#2D2837] text-white px-5 py-2 text-sm font-medium transition-colors shadow-xs disabled:opacity-50"
+          className="rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white px-5 py-2 text-sm font-semibold transition-all shadow-[0_2px_10px_rgba(244,114,182,0.35)] hover:shadow-[0_4px_14px_rgba(244,114,182,0.5)] disabled:opacity-50 disabled:from-gray-300 disabled:to-gray-300 disabled:shadow-none hover:scale-102 active:scale-98 shrink-0"
         >
           {isSaving ? 'Saving...' : 'Save Date'}
         </button>
       </form>
-    </section>
+    </div>
   );
 }

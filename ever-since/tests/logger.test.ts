@@ -46,6 +46,24 @@ async function main() {
         getClientIp(reqFallback) === '127.0.0.1',
         `Correct fallback to 127.0.0.1: ${getClientIp(reqFallback)}`
       );
+
+      // IPv6 loopback normalized to IPv4 127.0.0.1
+      const reqIpv6Loopback = new Request('http://localhost:3000/api/config', {
+        headers: { 'x-forwarded-for': '::1' },
+      });
+      harness.assert(
+        getClientIp(reqIpv6Loopback) === '127.0.0.1',
+        `Normalized ::1 to 127.0.0.1 (got: ${getClientIp(reqIpv6Loopback)})`
+      );
+
+      // IPv4-mapped IPv6 address normalized to IPv4
+      const reqIpv4Mapped = new Request('http://localhost:3000/api/config', {
+        headers: { 'x-forwarded-for': '::ffff:192.168.1.100' },
+      });
+      harness.assert(
+        getClientIp(reqIpv4Mapped) === '192.168.1.100',
+        `Normalized ::ffff:192.168.1.100 to 192.168.1.100 (got: ${getClientIp(reqIpv4Mapped)})`
+      );
     }
 
     // Test 3: Asynchronous JSON logging to custom log destination

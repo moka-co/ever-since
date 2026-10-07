@@ -52,19 +52,14 @@ export default function SealPhotoManager({
   }
 
   return (
-    <section
-      aria-labelledby="seal-photo-heading"
-      className="flex flex-col gap-4 pb-8 border-b border-[#E5E7EB]"
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 id="seal-photo-heading" className="text-lg font-semibold text-foreground">
-            Login Seal Photo or Meme
-          </h2>
-          <p className="text-xs text-muted mt-0.5">
-            Choose which uploaded photo or meme appears on the login screen alongside the date input.
-          </p>
-        </div>
+    <div className="flex flex-col gap-4 h-full justify-between">
+      <div className="flex flex-col gap-1">
+        <h2 id="seal-photo-heading" className="text-lg font-semibold text-foreground">
+          First Photo
+        </h2>
+        <p className="text-xs text-muted">
+          Photo or meme shown on the login date-entry screen
+        </p>
       </div>
 
       {errorMessage && (
@@ -74,15 +69,15 @@ export default function SealPhotoManager({
         <Alert type="success" message={successMessage} onDismiss={() => setSuccessMessage(null)} />
       )}
 
-      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3 mt-auto">
+        <div className="flex items-center gap-2.5">
           <select
             id="seal-media-select"
-            aria-label="Select seal photo or meme"
+            aria-label="Select first photo or meme"
             value={sealMediaId}
             onChange={(e) => setSealMediaId(e.target.value)}
             disabled={isSaving}
-            className="w-full sm:w-64 rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-foreground focus:border-cta focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs disabled:opacity-50"
+            className="flex-1 min-w-0 rounded-xl border border-[#ECDCE3] bg-[#FAF7F8] px-3 py-2 text-xs text-foreground focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs disabled:opacity-50 transition-colors truncate"
           >
             <option value="">Default cute seal photo</option>
             {mediaList.map((m) => (
@@ -95,15 +90,15 @@ export default function SealPhotoManager({
           <button
             type="submit"
             disabled={isSaving}
-            className="rounded-lg bg-[#1E1B24] hover:bg-[#2D2837] text-white px-5 py-2 text-sm font-medium transition-colors shadow-xs disabled:opacity-50 shrink-0"
+            className="rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white px-4 py-2 text-xs font-semibold transition-all shadow-[0_2px_10px_rgba(244,114,182,0.35)] hover:shadow-[0_4px_14px_rgba(244,114,182,0.5)] disabled:opacity-50 disabled:from-gray-300 disabled:to-gray-300 disabled:shadow-none hover:scale-102 active:scale-98 shrink-0"
           >
-            {isSaving ? 'Saving...' : 'Save Selection'}
+            {isSaving ? 'Saving...' : 'Save Photo'}
           </button>
         </div>
 
         {/* Thumbnail preview */}
-        <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-[#E5E7EB] bg-gray-50/70 shrink-0">
-          <div className="w-9 h-9 rounded-lg overflow-hidden bg-gray-200 shrink-0">
+        <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-2xl border border-[#ECDCE3] bg-[#FAF7F8]">
+          <div className="w-9 h-9 rounded-xl overflow-hidden bg-gray-100 border border-[#ECDCE3] shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={
@@ -115,14 +110,14 @@ export default function SealPhotoManager({
               className="w-full h-full object-cover"
             />
           </div>
-          <div className="flex flex-col text-xs">
-            <span className="font-medium text-foreground truncate max-w-[140px]">
+          <div className="flex flex-col text-xs min-w-0">
+            <span className="font-semibold text-foreground truncate">
               {selectedMedia ? selectedMedia.filename : 'Default cute seal'}
             </span>
             <span className="text-[10px] text-muted">Preview</span>
           </div>
         </div>
       </form>
-    </section>
+    </div>
   );
 }

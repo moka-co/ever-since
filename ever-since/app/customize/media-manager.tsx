@@ -105,7 +105,7 @@ export default function MediaManager({ initialMedia }: MediaManagerProps) {
   return (
     <section
       aria-labelledby="media-heading"
-      className="flex flex-col gap-4 pb-8 border-b border-[#E5E7EB]"
+      className="flex flex-col gap-4 pb-8 border-b border-[#C4A2B2]"
     >
       <div className="flex items-center justify-between">
         <div>
@@ -117,10 +117,10 @@ export default function MediaManager({ initialMedia }: MediaManagerProps) {
           </p>
         </div>
         <span
-          className={`text-xs font-medium px-3 py-1 rounded-full border ${
+          className={`text-xs font-semibold px-3 py-1 rounded-full border ${
             isQuotaFull
               ? 'bg-rose-50 text-rose-700 border-rose-200'
-              : 'bg-gray-100 text-foreground border-[#E5E7EB]'
+              : 'bg-[#FAF7F8] text-foreground border-[#F1E8EC]'
           }`}
         >
           {mediaList.length} / {MAX_MEDIA_COUNT} media files used
@@ -142,12 +142,12 @@ export default function MediaManager({ initialMedia }: MediaManagerProps) {
           name="file"
           accept="image/*,video/*"
           disabled={isUploading || isQuotaFull}
-          className="text-xs text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border file:border-[#E5E7EB] file:text-xs file:font-medium file:bg-gray-50 file:text-foreground hover:file:bg-gray-100 cursor-pointer disabled:opacity-50"
+          className="text-xs text-muted file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border file:border-[#F1E8EC] file:text-xs file:font-semibold file:bg-[#FAF7F8] file:text-foreground hover:file:bg-white cursor-pointer disabled:opacity-50 transition-colors"
         />
         <button
           type="submit"
           disabled={isUploading || isQuotaFull}
-          className="rounded-lg bg-[#1E1B24] hover:bg-[#2D2837] text-white px-4 py-2 text-xs font-medium transition-colors shadow-xs disabled:opacity-50"
+          className="rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white px-5 py-2 text-xs font-semibold transition-all shadow-[0_2px_10px_rgba(244,114,182,0.35)] hover:shadow-[0_4px_14px_rgba(244,114,182,0.5)] disabled:opacity-50 disabled:from-gray-300 disabled:to-gray-300 disabled:shadow-none hover:scale-102 active:scale-98"
         >
           {isUploading ? 'Uploading...' : 'Upload Media'}
         </button>
@@ -155,7 +155,7 @@ export default function MediaManager({ initialMedia }: MediaManagerProps) {
 
       {/* Media List / Grid */}
       {mediaList.length === 0 && !isUploading ? (
-        <p className="text-xs text-muted py-4 text-center italic bg-gray-50/50 rounded-xl border border-dashed border-[#E5E7EB]">
+        <p className="text-xs text-muted py-6 text-center italic bg-[#FAF7F8] rounded-2xl border border-dashed border-[#F1E8EC]">
           No media files uploaded yet. Select a photo or video above to get started.
         </p>
       ) : (
@@ -163,16 +163,16 @@ export default function MediaManager({ initialMedia }: MediaManagerProps) {
           {isUploading && (
             <li
               aria-label="Uploading media item"
-              className="flex items-center justify-between p-3 rounded-xl border border-[#E5E7EB] bg-gray-50/50"
+              className="flex items-center justify-between p-3.5 rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8]"
             >
               <div className="flex items-center gap-3">
-                <Skeleton className="w-10 h-10 rounded-lg shrink-0" />
+                <Skeleton className="w-11 h-11 rounded-xl shrink-0" />
                 <div className="flex flex-col gap-1.5">
                   <Skeleton className="h-4 w-32" />
                   <Skeleton className="h-3 w-16" />
                 </div>
               </div>
-              <Skeleton className="h-6 w-14 rounded-md" />
+              <Skeleton className="h-6 w-14 rounded-full" />
             </li>
           )}
           {mediaList.map((item) => {
@@ -180,10 +180,10 @@ export default function MediaManager({ initialMedia }: MediaManagerProps) {
             return (
               <li
                 key={item.id}
-                className="flex items-center justify-between p-3 rounded-xl border border-[#E5E7EB] bg-gray-50/50 hover:bg-gray-50 transition-colors"
+                className="flex items-center justify-between p-3.5 rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8]/80 hover:bg-white hover:shadow-xs transition-all"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gray-200 border border-[#E5E7EB] overflow-hidden flex items-center justify-center shrink-0">
+                  <div className="w-11 h-11 rounded-xl bg-gray-100 border border-[#F1E8EC] overflow-hidden flex items-center justify-center shrink-0">
                     {video ? (
                       <span className="text-[10px] font-bold text-muted uppercase">VID</span>
                     ) : (
@@ -197,7 +197,7 @@ export default function MediaManager({ initialMedia }: MediaManagerProps) {
                   </div>
 
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-foreground">{item.filename}</span>
+                    <span className="text-sm font-semibold text-foreground">{item.filename}</span>
                     <span className="text-[11px] text-muted">
                       {video
                         ? 'Video'
@@ -212,7 +212,7 @@ export default function MediaManager({ initialMedia }: MediaManagerProps) {
                   type="button"
                   onClick={() => handleDelete(item.id)}
                   disabled={deletingId === item.id}
-                  className="text-xs text-rose-600 hover:text-rose-700 font-medium px-3 py-1 rounded-md hover:bg-rose-50 transition-colors disabled:opacity-50"
+                  className="text-xs text-rose-500 hover:text-rose-700 font-semibold px-3 py-1.5 rounded-full hover:bg-rose-50 transition-colors disabled:opacity-50"
                 >
                   {deletingId === item.id ? 'Deleting...' : 'Delete'}
                 </button>

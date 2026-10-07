@@ -251,7 +251,7 @@ export default function MemoriesManager({
       {/* 3. Create / Edit Memory Form */}
       <section
         aria-labelledby="memory-form-heading"
-        className="flex flex-col gap-4 pb-8 border-b border-[#E5E7EB]"
+        className="flex flex-col gap-4 pb-8 border-b border-[#C4A2B2]"
       >
         <div className="flex items-center justify-between">
           <div>
@@ -268,7 +268,7 @@ export default function MemoriesManager({
             <button
               type="button"
               onClick={handleCancelEdit}
-              className="text-xs font-medium text-muted hover:text-foreground px-3 py-1.5 rounded-lg border border-[#E5E7EB] bg-white transition-colors shadow-2xs"
+              className="text-xs font-semibold text-muted hover:text-foreground px-3.5 py-1.5 rounded-full border border-[#F1E8EC] bg-[#FAF7F8] hover:bg-white transition-colors shadow-2xs"
             >
               Cancel Edit
             </button>
@@ -284,7 +284,7 @@ export default function MemoriesManager({
 
         <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="memory-heading" className="text-sm font-medium text-foreground">
+            <label htmlFor="memory-heading" className="text-sm font-semibold text-foreground">
               Header
             </label>
             <input
@@ -296,12 +296,12 @@ export default function MemoriesManager({
               placeholder="Ever since we met..."
               maxLength={100}
               disabled={isSubmitting}
-              className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-cta focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs disabled:opacity-50"
+              className="rounded-xl border border-[#F1E8EC] bg-[#FAF7F8] px-3.5 py-2 text-sm text-foreground placeholder:text-muted/70 focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs disabled:opacity-50 transition-colors"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="memory-text" className="text-sm font-medium text-foreground">
+            <label htmlFor="memory-text" className="text-sm font-semibold text-foreground">
               Text
             </label>
             <textarea
@@ -313,13 +313,13 @@ export default function MemoriesManager({
               maxLength={100}
               rows={2}
               disabled={isSubmitting}
-              className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-cta focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs resize-none disabled:opacity-50"
+              className="rounded-xl border border-[#F1E8EC] bg-[#FAF7F8] px-3.5 py-2 text-sm text-foreground placeholder:text-muted/70 focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs resize-none disabled:opacity-50 transition-colors"
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="memory-media" className="text-sm font-medium text-foreground">
+              <label htmlFor="memory-media" className="text-sm font-semibold text-foreground">
                 Media
               </label>
               <select
@@ -328,7 +328,7 @@ export default function MemoriesManager({
                 value={mediaId}
                 onChange={(e) => setMediaId(e.target.value)}
                 disabled={isSubmitting}
-                className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-foreground focus:border-cta focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs disabled:opacity-50"
+                className="rounded-xl border border-[#F1E8EC] bg-[#FAF7F8] px-3.5 py-2 text-sm text-foreground focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs disabled:opacity-50 transition-colors"
               >
                 <option value="">None</option>
                 {mediaList.map((m) => (
@@ -341,7 +341,7 @@ export default function MemoriesManager({
 
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
-                <label htmlFor="memory-button" className="text-sm font-medium text-foreground">
+                <label htmlFor="memory-button" className="text-sm font-semibold text-foreground">
                   Fun Button
                 </label>
                 <span className="text-[10px] text-muted italic">Coming soon</span>
@@ -352,7 +352,7 @@ export default function MemoriesManager({
                 value={buttonType}
                 onChange={(e) => setButtonType(e.target.value)}
                 disabled={true}
-                className="rounded-lg border border-[#E5E7EB] bg-gray-100 px-3 py-2 text-sm text-muted cursor-not-allowed shadow-2xs"
+                className="rounded-xl border border-[#F1E8EC] bg-gray-100/70 px-3.5 py-2 text-sm text-muted cursor-not-allowed shadow-2xs"
               >
                 <option value="">None</option>
                 <option value="seal">Pixel Seal</option>
@@ -366,7 +366,7 @@ export default function MemoriesManager({
             <button
               type="submit"
               disabled={isSubmitting || isQuotaFull}
-              className="rounded-lg bg-cta hover:bg-cta-hover text-white px-6 py-2.5 text-sm font-medium transition-colors shadow-xs disabled:opacity-50"
+              className="rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white px-6 py-2.5 text-sm font-semibold transition-all shadow-[0_2px_12px_rgba(244,114,182,0.4)] hover:shadow-[0_4px_16px_rgba(244,114,182,0.55)] disabled:opacity-50 disabled:from-gray-300 disabled:to-gray-300 disabled:shadow-none hover:scale-102 active:scale-98"
             >
               {isSubmitting
                 ? 'Saving...'
@@ -379,7 +379,7 @@ export default function MemoriesManager({
                 type="button"
                 onClick={handleCancelEdit}
                 disabled={isSubmitting}
-                className="text-xs font-medium text-muted hover:text-foreground px-4 py-2 rounded-lg border border-[#E5E7EB] bg-white transition-colors"
+                className="text-xs font-semibold text-muted hover:text-foreground px-4 py-2 rounded-full border border-[#F1E8EC] bg-[#FAF7F8] hover:bg-white transition-colors"
               >
                 Cancel
               </button>
@@ -400,10 +400,10 @@ export default function MemoriesManager({
             </p>
           </div>
           <span
-            className={`text-xs font-medium px-3 py-1 rounded-full border ${
+            className={`text-xs font-semibold px-3 py-1 rounded-full border ${
               memories.length >= MAX_MEMORIES_COUNT
                 ? 'bg-rose-50 text-rose-700 border-rose-200'
-                : 'bg-gray-100 text-foreground border-[#E5E7EB]'
+                : 'bg-[#FAF7F8] text-foreground border-[#F1E8EC]'
             }`}
           >
             {memories.length} / {MAX_MEMORIES_COUNT} memories used
@@ -411,7 +411,7 @@ export default function MemoriesManager({
         </div>
 
         {memories.length === 0 && !(isSubmitting && !editingId) ? (
-          <p className="text-xs text-muted py-6 text-center italic bg-gray-50/50 rounded-xl border border-dashed border-[#E5E7EB]">
+          <p className="text-xs text-muted py-6 text-center italic bg-[#FAF7F8] rounded-2xl border border-dashed border-[#F1E8EC]">
             No memories created yet. Use the form above to author your first memory.
           </p>
         ) : (
@@ -432,12 +432,12 @@ export default function MemoriesManager({
                   onDragLeave={onDragLeave}
                   onDrop={(e) => onDrop(e, index)}
                   onDragEnd={onDragEnd}
-                  className={`flex items-center justify-between gap-4 p-3.5 rounded-xl border transition-all ${
+                  className={`flex items-center justify-between gap-4 p-3.5 rounded-2xl border transition-all ${
                     isBeingDragged
                       ? 'opacity-40 border-dashed border-cta bg-cta/5'
                       : isTargetHovered
                       ? 'border-cta bg-cta/10 scale-[1.01]'
-                      : 'border-[#E5E7EB] bg-gray-50/60 hover:bg-gray-50'
+                      : 'border-[#F1E8EC] bg-[#FAF7F8]/80 hover:bg-white hover:shadow-xs'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -454,7 +454,7 @@ export default function MemoriesManager({
                         onClick={() => move(index, -1)}
                         disabled={isFirst || isReordering}
                         aria-label={`Move "${item.heading || 'memory'}" up`}
-                        className="w-7 h-7 rounded-md border border-[#E5E7EB] bg-white hover:bg-gray-100 flex items-center justify-center text-xs font-semibold text-foreground transition-colors shadow-2xs disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="w-7 h-7 rounded-lg border border-[#F1E8EC] bg-white hover:bg-gray-50 flex items-center justify-center text-xs font-semibold text-foreground transition-colors shadow-2xs disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         &uarr;
                       </button>
@@ -463,7 +463,7 @@ export default function MemoriesManager({
                         onClick={() => move(index, 1)}
                         disabled={isLast || isReordering}
                         aria-label={`Move "${item.heading || 'memory'}" down`}
-                        className="w-7 h-7 rounded-md border border-[#E5E7EB] bg-white hover:bg-gray-100 flex items-center justify-center text-xs font-semibold text-foreground transition-colors shadow-2xs disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="w-7 h-7 rounded-lg border border-[#F1E8EC] bg-white hover:bg-gray-50 flex items-center justify-center text-xs font-semibold text-foreground transition-colors shadow-2xs disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         &darr;
                       </button>
@@ -493,7 +493,7 @@ export default function MemoriesManager({
                       type="button"
                       onClick={() => handleStartEdit(item)}
                       disabled={editingId === item.id || isReordering}
-                      className="text-xs text-foreground hover:text-cta font-medium px-3 py-1.5 rounded-lg border border-[#E5E7EB] bg-white hover:bg-gray-50 transition-colors shadow-2xs disabled:opacity-50"
+                      className="text-xs text-foreground hover:text-cta font-semibold px-3 py-1.5 rounded-full border border-[#F1E8EC] bg-white hover:bg-[#FAF7F8] transition-colors shadow-2xs disabled:opacity-50"
                     >
                       {editingId === item.id ? 'Editing' : 'Edit'}
                     </button>
@@ -501,7 +501,7 @@ export default function MemoriesManager({
                       type="button"
                       onClick={() => handleDelete(item.id)}
                       disabled={deletingId === item.id || isReordering}
-                      className="text-xs text-rose-600 hover:text-rose-700 font-medium px-3 py-1.5 rounded-lg border border-[#E5E7EB] bg-white hover:bg-rose-50 transition-colors shadow-2xs disabled:opacity-50"
+                      className="text-xs text-rose-500 hover:text-rose-700 font-semibold px-3 py-1.5 rounded-full border border-[#F1E8EC] bg-white hover:bg-rose-50 transition-colors shadow-2xs disabled:opacity-50"
                     >
                       {deletingId === item.id ? 'Deleting...' : 'Delete'}
                     </button>
@@ -512,13 +512,13 @@ export default function MemoriesManager({
             {isSubmitting && !editingId && (
               <li
                 aria-label="Saving memory item"
-                className="flex items-center justify-between gap-4 p-3.5 rounded-xl border border-[#E5E7EB] bg-gray-50/60"
+                className="flex items-center justify-between gap-4 p-3.5 rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8]"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="text-muted text-base font-mono px-1">::</span>
                   <div className="flex items-center gap-1 shrink-0">
-                    <Skeleton className="w-7 h-7 rounded-md" />
-                    <Skeleton className="w-7 h-7 rounded-md" />
+                    <Skeleton className="w-7 h-7 rounded-lg" />
+                    <Skeleton className="w-7 h-7 rounded-lg" />
                   </div>
                   <div className="flex flex-col gap-1.5 min-w-0">
                     <Skeleton className="h-4 w-36" />
@@ -526,8 +526,8 @@ export default function MemoriesManager({
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <Skeleton className="h-7 w-12 rounded-lg" />
-                  <Skeleton className="h-7 w-14 rounded-lg" />
+                  <Skeleton className="h-7 w-12 rounded-full" />
+                  <Skeleton className="h-7 w-14 rounded-full" />
                 </div>
               </li>
             )}

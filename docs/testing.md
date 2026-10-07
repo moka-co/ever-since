@@ -18,7 +18,7 @@ Given the project's nature—a temporary, highly interactive, and emotional web 
 - **Storage Layer (`lib/storage/`):** Ensure the flat JSON database (`db.json`) reads and writes correctly via `readDb()` and `updateDb()`.
 - **Hermetic Test Isolation:** Tests run in isolated temporary operating system directories (via `useTempDb` in `tests/helpers.ts`) using separate DB and media folders (`process.env.DB_PATH` / `process.env.MEDIA_DIR`). They **never touch the development DB (`data/db.json`)**, run completely self-contained, and do not require an active server process.
 - **Data Validation:** Validate that Zod schemas correctly catch invalid data payloads on API endpoints and during disk writes.
-- **API Logic:** Test Next.js API endpoints, specifically the rate-limiting logic on `/api/auth/login`, media serving security on `/api/media/[id]`, and the 20-file quota limit on `/api/media`.
+- **API Logic:** Test Next.js API endpoints, specifically the rate-limiting logic on `/api/auth/login`, media serving security on `/api/media/[id]`, the 50-file quota limit on `/api/media`, and the 50-memory quota limit on `/api/memories`.
 
 ### Manual Testing & QA
 **Scope:**

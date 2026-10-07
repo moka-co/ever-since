@@ -31,12 +31,15 @@
   - **Frecce di navigazione (`--nav-arrow` / `--nav-arrow-hover`)**: `#9CA3AF` allo stato base, con transizione a `#1E1B24` o `#DB2777` in hover.
   - **Accento bottoni (CTA - `--cta` / `--cta-hover`)**: `#DB2777` o `#BE185D` (magenta/lampone carico per garantire ottima leggibilità con testo bianco) oppure `#0F172A` (nero satinato per uno stile minimale ad alto contrasto).
 - **Background (Mesh Gradient tenue - Aura soft)**:
-  - Base color: `#FFF0F3` (soft warm blush)
-  - Light point / Glow at top center: `#F472B6` (pastel pink, 35% opacity / `rgba(244, 114, 182, 0.35)`)
+  - Base color: `#fffafa` (soft warm ivory blush)
+  - Mesh accents: `#ffd9e2` (warm blush at 15% 10%), `#ffe8d6` (warm peach at 90% 25%), `#e9ddff` (soft lavender at 50% 100%)
   - **Standard CSS**:
     ```css
-    background-color: #FFF0F3;
-    background-image: radial-gradient(at 50% 0%, rgba(244, 114, 182, 0.35) 0%, rgba(244, 114, 182, 0) 75%);
+    background-color: #fffafa;
+    background-image:
+      radial-gradient(60% 50% at 15% 10%, #ffd9e2 0%, transparent 70%),
+      radial-gradient(50% 45% at 90% 25%, #ffe8d6 0%, transparent 70%),
+      radial-gradient(55% 50% at 50% 100%, #e9ddff 0%, transparent 70%);
     background-attachment: fixed;
     ```
 - **Contrast Rule (WCAG AA)**: 
@@ -59,12 +62,13 @@
 - **Motion & Reduced Motion (`prefers-reduced-motion`)**:
   - Default: Subtle bouncy transitions, card slide gestures, and interactive spring physics.
   - When reduced motion is preferred: Bouncy and slide animations are replaced with gentle 150ms crossfades; dynamic runaway button movement is disabled in favor of static, accessible progression.
+  - **Skeleton loading**: use skeleton loading in customize and main flow, implemented using the shadcn/ui Skeleton component.
 
 ## Page-Specific Design Guidelines
 
 ### Login Screen (Emotional Framing & Failure States)
 - **Concept**: Sentimental framing that turns authentication into part of the narrative (e.g., "Ever since [date]...").
-- **Card Visuals & Input**: Enclosed in a centered white/light card (`rounded-2xl`) requiring a subtle drop shadow (`shadow-sm`) and border to elevate it gently above the background aura. A minimalist text input styled subtly to blend into the romantic copy rather than looking like an enterprise tech login box.
+- **Card Visuals & Input**: Enclosed in a centered elevated white card with generous rounding (`rounded-[36px]` / `rounded-[40px]`), warm outline (`border-[#F1E8EC]`), and soft rose drop shadow (`shadow-[0_12px_40px_rgba(255,150,170,0.22)]`), cleanly elevated above the mesh canvas. Features a minimalist rounded input (`rounded-2xl border-[#F1E8EC] bg-[#FAF7F8]`) and a signature rose-gradient primary action button (`from-[#F472B6] to-[#FB7185]`) matching the rest of the application.
 - **Input Guidance**: Includes a subtle, romantic placeholder hint (e.g., `"Our date..."` or `"ask your nerd"`) to gently guide the user without breaking immersion.
 - **Failure States & Escalating Feedback (5 Attempts)**:
   - Attempts 1–2: Gentle input shake with a warm retry prompt.
@@ -77,8 +81,11 @@
 
 ### Date-Entry Screen (Story Initiation)
 - **Concept**: Occurs immediately after successful authentication to kick off the memory timeline.
-- **Visuals & Layout**: Near-identical aesthetic to the login screen, featuring a card with required subtle drop shadow (`shadow-sm`), preserving the emotional, full-screen romantic framing (e.g., "The day our story began...").
-- **Input & Submission**: A minimalist date input matching the login field styling. Submitting a valid date initiates the transition into the linear memory flow.
+- **Visuals & Layout**: Identical design language to the rest of the application, featuring single elevated cards (`rounded-[36px]` / `rounded-[40px]`, `shadow-[0_12px_40px_rgba(255,150,170,0.22)]`) for both date input and the introductory seal photo/meme.
+- **Input & Submission**: Minimalist segmented date input (`DD / MM / YYYY`) with auto-advancing focus and gradient "Start Story" pill button. Submitting a valid date initiates the transition into the linear memory flow.
+
+### Logout Screen
+- **Visuals & Feedback**: Centered elevated white card (`rounded-[36px]` / `rounded-[40px]`) echoing the memory flow with signature progress dots (`#F1D6DE` and active `#D4537E` pill), displaying "Redirecting to login" before smooth transition.
 - **Autofocus & Mobile Keyboards**: 
   - Autofocus the first input field on load to reduce interaction friction.
   - For segmented date fields (`DD / MM / YYYY`), automatically advance focus to the next field as digits are entered (auto-advancing from `DD` to `MM` to `YYYY`).
@@ -87,19 +94,18 @@
 ### Main Memory Flow & Navigation
 - **Structure**: A linear, swipeable flow where only **1 modern card is viewed at a time**.
 - **Media Presentation & Stack Cue**:
-  - **Mandatory Round Corners**: Cards must feature soft, pronounced round corners (specifically `rounded-3xl` / `rounded-[32px]`, avoiding outdated Polaroid borders) and a required subtle drop shadow (`shadow-xs` / `shadow-sm`) to stand out cleanly from the canvas.
-  - **Stacked Card as Visual Clue**: In the `"/"` main flow, the card positioned beneath and offset slightly to the right of the active card serves as a vital visual clue to signal to the user that there are more cards ahead in the story. To preserve sequential surprise, this peeked card edge shows strictly a neutral outline and subtle shadow with no recognizable thumbnail bleed.
-  - If the card container is a fixed square/rectangle, apply `object-fit: contain` with a soft ambient blurred background or pastel fill behind the photo to avoid awkward cropping of heads or borders.
+  - **Lifted Card & Mandatory Round Corners**: Cards feature generous rounded corners (`rounded-[36px]` / `rounded-[40px]`) and a soft rose drop shadow (`0 12px 40px rgba(255,150,170,0.22)`) so the white card feels elevated and cleanly separated from the warm ivory mesh canvas.
+  - **Stacked Card as Visual Clue**: The peeked card positioned beneath (`translate-x-3.5 translate-y-2`) inherits the same generous curvature (`rounded-[36px]` / `rounded-[40px]`), delicate outline, and subtle shadow (`0 10px 35px rgba(255,150,170,0.18)`), perfectly preserving the tactile illusion of an overlapping card stack. **Exclusivity**: The double fake card effect is strictly exclusive to the main flow (`/`) and must not be used on other views (such as `/login`, `/logout`, or `/customize`), which use clean, single elevated cards.
+  - **Integrated Narrative Caption**: Media (photo or video in a rounded inner frame) and text (headline + description) are integrated together inside the card, centered directly beneath the photo, creating a cohesive, symmetrical memory card.
 - **Progress Indicator**:
-  - A subtle, minimal series of faint dot indicators positioned unobtrusively at the top or bottom of the screen, providing orientation without distracting from the narrative.
-  - Utilizes dynamic sliding dots (similar to Instagram/iOS carousels), where the active dot is larger and only ~5–7 dots are shown at a time with subtle shrinking on the edges.
-- **Navigation Controls**:
-  - Touch-based horizontal swipe gestures for mobile: On mobile, make sure the entire card responds naturally to horizontal swipe gestures so users don't have to precisely tap small circular arrows.
-  - Subtle left and right navigation arrows positioned along the viewport edges for desktop pointer fallback.
-- **Rewind Control**:
-  - An unobtrusive "Rewind" button anchored at the bottom of the screen.
-  - **Pointer & Touch Interaction**: A 1.5-second press-and-hold interaction with a circular/radial fill animation.
-  - **Keyboard Interaction**: Pressing and holding `Enter` or `Space` on the focused Rewind button for 1.5 seconds triggers the identical radial fill and executes the rewind upon completion.
+  - Positioned closely above the card (`mb-4` / `mb-5`), utilizing dynamic sliding dots with soft blush tones (`#F1D6DE`) for inactive dots.
+  - The active indicator expands into an elongated pill in cool berry rose (**`#D4537E`**), providing crisp visual contrast against the pastel backdrop.
+- **Navigation Controls & Toolbar**:
+  - Compact toolbar centered directly below the card uniting `< Prev`, `↺ Rewind`, and `Next >`:
+    - **Previous (`<`)**: Secondary circular button in milk-white with delicate border and subtle shadow.
+    - **Rewind (`↺`)**: Centered 1.5-second press-and-hold button with circular radial fill animation in berry rose.
+    - **Next (`>`)**: Primary action button styled with an eye-catching peach-pink gradient (`from-[#F472B6] to-[#FB7185]`), white chevron, and glowing rose shadow to establish clear narrative hierarchy.
+  - Mobile swipe gestures on the card remain supported for natural one-handed browsing.
 - **Empty State (Main Flow)**:
   - When no memories have been published yet, renders a minimal, romantic placeholder card: *"Our memories are still being written... Check back soon!"*
   - Status: [TO REFINE: Placeholder illustration and custom copy]
@@ -116,9 +122,15 @@
 
 ### Admin Dashboard (`/customize`)
 - **Platform Constraint**: **Explicitly Desktop-Only** (viewport width >= 1024px). Accessing `/customize` on mobile displays a clear, polite notice requesting the user open the dashboard on a computer.
-- **Visuals**: **Purely functional and utilitarian**. High contrast, clean tables/lists, and crisp controls optimized for upload speed, sorting, and clarity.
-- **Media Management & Error Feedback**:
-  - Direct multipart file upload zone with clear quota badges (e.g., "12 / 20 media files used") and file size feedback, clarifying that the 20-item cap applies to uploaded media assets rather than total memories.
+- **Visuals & Layout**:
+  - **Structure**: Single elevated card container with generous rounding (`rounded-[36px]` / `rounded-[40px]`) and soft rose elevation shadow.
+  - **Evident Separation Lines**: Distinct, evident dividing lines in soft dusty mauve (`#C4A2B2`) cleanly delineate each section and sub-column, replacing faint, low-contrast borders.
+  - **Story Initiation Sub-Section (Two Columns)**: A dedicated two-column grid at the top uniting the kickoff settings:
+    - **Column 1 (Anniversary Date)**: Date picker input and primary save button for the recurrence date.
+    - **Column 2 (First Photo)**: Media dropdown selector and live thumbnail preview for the photo or seal meme shown on the login date-entry screen.
+- **Media & Memories Management & Quota Feedback**:
+  - Direct multipart file upload zone with clear quota badges (e.g., "12 / 50 media files used") and file size feedback.
+  - Memories timeline authoring with a distinct 50-memory quota badge (e.g., "8 / 50 memories used"), disabling new additions and alerting the admin when the limit is reached.
   - **Inline Error & Retry Feedback**: If a media upload or database write fails, an inline error notification is displayed directly on the affected item or upload dropzone (e.g., *"Upload failed: File exceeds limit or network dropped • [Retry]"*). This ensures the admin can catch and fix issues before sharing the site, while end-user flows remain quiet.
 - **Reordering**:
   - Drag-and-drop memory reordering designed for mouse interactions.

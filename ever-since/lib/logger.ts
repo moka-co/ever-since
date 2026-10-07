@@ -50,19 +50,51 @@ export function createLogger(customDest?: string): pino.Logger {
 export const logger = createLogger();
 
 /**
- * Helper to extract client IP from incoming requests.
+ * Normalizes an IP address to IPv4 format:
+ * - Maps IPv6 localhost '::1' to '127.0.0.1'
+ * - Strips IPv4-mapped IPv6 prefix '::ffff:192.0.2.1' -> '192.0.2.1'
+ */
+export function normalizeToIpv4(ip: string): string {
+  const trimmed = ip.trim();
+
+  // Strip IPv6 brackets if present, e.g. [::1] or [::ffff:127.0.0.1]
+  const unbracketed = trimmed.replace(/^\[(.*)\]$/, '$1');
+
+  // IPv6 loopback
+  if (unbracketed === '::1') {
+    return '127.0.0.1';
+  }
+
+  // IPv4-mapped IPv6 address (e.g., ::ffff:192.168.1.1 or ::ffff:127.0.0.1)
+  const mappedMatch = unbracketed.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i);
+  if (mappedMatch) {
+    return mappedMatch[1];
+  }
+
+  return unbracketed;
+}
+
+/**
+ * Helper to extract client IP from incoming requests and return in IPv4 format.
  */
 export function getClientIp(request: Request): string {
+  let rawIp = '';
+
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) {
-    return forwarded.split(',')[0].trim();
+    rawIp = forwarded.split(',')[0].trim();
+  } else {
+    const realIp = request.headers.get('x-real-ip');
+    if (realIp) {
+      rawIp = realIp.trim();
+    } else if ('ip' in request && typeof (request as { ip?: string }).ip === 'string') {
+      rawIp = (request as { ip: string }).ip.trim();
+    }
   }
-  const realIp = request.headers.get('x-real-ip');
-  if (realIp) {
-    return realIp.trim();
+
+  if (!rawIp) {
+    return '127.0.0.1';
   }
-  if ('ip' in request && typeof (request as { ip?: string }).ip === 'string') {
-    return (request as { ip: string }).ip;
-  }
-  return '127.0.0.1';
+
+  return normalizeToIpv4(rawIp);
 }

@@ -153,7 +153,8 @@ Since auth is cookie-based, a requirement is `SameSite` (Lax) for the session co
 4. Serve via `/api/media/[id]`
 
 Hard constraints: 
-- 20 media files, no new upload allowed without deleting some files first.
+- 50 media files, no new upload allowed without deleting some files first.
+- 50 memories, no new memory creation allowed without deleting existing ones first.
 - Max upload size 10MB for photos, 50MB for videos
 
 Media upload and write failures silently fail for the base user (partner) and are logged server-side. For the admin user in `/customize`, the API returns an error response with details to power an inline error and retry affordance.
@@ -180,11 +181,11 @@ Backup of `db.json` is out of scope given the short lifespan of the app.
 | `GET` | `/api/config` | Authenticated | Fetch anniversary date & story settings |
 | `PUT` | `/api/config` | Authenticated | Update anniversary date |
 | `GET` | `/api/memories` | Authenticated | Fetch ordered memories for timeline |
-| `POST` | `/api/memories` | Authenticated | Add a new memory item |
+| `POST` | `/api/memories` | Authenticated | Add a new memory item (enforcing 50-memory quota) |
 | `PUT` | `/api/memories/[id]` | Authenticated | Update an existing memory |
 | `DELETE` | `/api/memories/[id]` | Authenticated | Delete a memory item |
 | `PUT` | `/api/memories/reorder` | Authenticated | Reorder memories after drag & drop |
-| `GET` | `/api/media` | Authenticated | List media & inspect 20-file quota |
+| `GET` | `/api/media` | Authenticated | List media & inspect 50-file quota |
 | `POST` | `/api/media` | Authenticated | Upload photo/video (max 10MB/50MB, Sharp processed) |
 | `DELETE` | `/api/media/[id]` | Authenticated | Delete media file and reclaim quota |
 | `GET` | `/api/media/[id]` | Authenticated | Serve media binary directly from disk |
