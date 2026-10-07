@@ -11,7 +11,6 @@ interface TimelineClientProps {
 }
 
 export default function TimelineClient({ memories, media }: TimelineClientProps) {
-  const [version] = useState(() => Date.now());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isRewinding, setIsRewinding] = useState(false);
   const rewindTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -60,11 +59,7 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
   const activeMemory = memories[currentIndex];
   const activeMedia = activeMemory?.mediaId ? media.find((m) => m.id === activeMemory.mediaId) : null;
   const showStackPeek = currentIndex < memories.length - 1;
-  const mediaSrc = activeMedia
-    ? version
-      ? `/api/media/${activeMedia.filename}?t=${version}`
-      : `/api/media/${activeMedia.filename}`
-    : '';
+  const mediaSrc = activeMedia ? `/api/media/${activeMedia.filename}` : '';
 
   if (memories.length === 0) {
     return (

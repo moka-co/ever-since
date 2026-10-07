@@ -12,6 +12,7 @@ import {
 } from '@/lib/media/validation';
 import { processPhotoBuffer, writeMediaFile } from '@/lib/media/processor';
 import { errorResponse } from '@/lib/api';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/media
@@ -64,8 +65,26 @@ export async function POST(request: NextRequest) {
     );
 
     if (validationError) {
+      logger.warn(
+        {
+          event: 'media_validation_failed',
+          filename: file.name,
+          size: file.size,
+          error: validationError,
+        },
+        `Media validation failed: ${validationError}`
+      );
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
+
+    logger.info(
+      {
+        event: 'media_validation_passed',
+        filename: file.name,
+        size: file.size,
+      },
+      `Media validation passed for ${file.name}`
+    );
 
     const nextId = getNextMediaId(currentDb.media);
     const ext = getExtension(file.name);

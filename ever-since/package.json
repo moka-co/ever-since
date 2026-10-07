@@ -32,7 +32,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.6",
+    "eslint-config-next": "^14.2.35",
     "simple-git-hooks": "^2.14.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",

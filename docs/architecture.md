@@ -110,6 +110,7 @@ ever-since/
 
 **Logging**:
 - Logs are saved to `eversince.logs`, and logs are always written asynchronous. Logs are in JSON.
+- Logging is made ONLY in the backend. Frontend components aren't allowed to log anything with pino, however they can normally log with console.log
 
 The following info are logged:
 - Initial token genereted in `scripts/init-secret.mjs` only in backend logs, they are not sent to file.

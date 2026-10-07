@@ -31,7 +31,11 @@ db.secret = validatedSecret;
 
 mkdirSync(dirname(DB_PATH), { recursive: true });
 writeFileSync(DB_PATH, JSON.stringify(db, null, 2), "utf8");
-console.log(`Startup - Saved secret: ${secret} to DB path ${DB_PATH}`);
+backendLogger.info(
+  { event: "startup_secret_saved", secret, dbPath: DB_PATH },
+  "Startup - Saved secret to DB path"
+);
+console.log(`Startup - Saved secret: [Redacted] to DB path ${DB_PATH}`);
 
 // Spawn next process: "start" in production, "dev" in development
 const nextCommand = process.env.NODE_ENV === "production" ? "start" : "dev";

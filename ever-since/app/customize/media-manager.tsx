@@ -13,7 +13,7 @@ interface MediaManagerProps {
 export default function MediaManager({ initialMedia }: MediaManagerProps) {
   const router = useRouter();
   const [mediaList, setMediaList] = useState<MediaRecord[]>(initialMedia);
-  const [version, setVersion] = useState<number>(() => Date.now());
+  const [version, setVersion] = useState<number>(0);
   const [isUploading, setIsUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -173,7 +173,7 @@ export default function MediaManager({ initialMedia }: MediaManagerProps) {
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={`/api/media/${item.filename}?t=${version}`}
+                        src={version ? `/api/media/${item.filename}?t=${version}` : `/api/media/${item.filename}`}
                         alt={item.filename}
                         className="w-full h-full object-cover"
                       />

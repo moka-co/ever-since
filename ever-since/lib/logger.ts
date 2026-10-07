@@ -1,3 +1,4 @@
+import 'server-only';
 import pino from 'pino';
 import { resolve } from 'node:path';
 
@@ -12,6 +13,11 @@ export const LOG_FILE_PATH = process.env.LOG_FILE_PATH ?? resolve(process.cwd(),
  * - In test mode (NODE_ENV === 'test' unless FORCE_LOG=true), logger is silent so tests are NOT logged to file.
  */
 export function createLogger(customDest?: string): pino.Logger {
+  // If running in browser or environment without pino.destination, return standard browser-safe logger
+  if (typeof window !== 'undefined' || typeof pino.destination !== 'function') {
+    return pino();
+  }
+
   const isTest = process.env.NODE_ENV === 'test' && !process.env.FORCE_LOG;
 
   if (isTest && !customDest) {
@@ -28,6 +34,14 @@ export function createLogger(customDest?: string): pino.Logger {
   return pino(
     {
       level: process.env.LOG_LEVEL || 'info',
+      redact: [
+        'secret',
+        '*.secret',
+        'secret.value',
+        '*.secret.value',
+        'password',
+        '*.password',
+      ],
     },
     destination
   );
