@@ -3,6 +3,7 @@
 import { useState, useRef, type FormEvent, type DragEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { MemoryRecord, MediaRecord } from '@/lib/storage/schema';
+import { Skeleton } from '@/components/ui/skeleton';
 import Alert from './alert';
 
 interface MemoriesManagerProps {
@@ -397,7 +398,7 @@ export default function MemoriesManager({
           </span>
         </div>
 
-        {memories.length === 0 ? (
+        {memories.length === 0 && !(isSubmitting && !editingId) ? (
           <p className="text-xs text-muted py-6 text-center italic bg-gray-50/50 rounded-xl border border-dashed border-[#E5E7EB]">
             No memories created yet. Use the form above to author your first memory.
           </p>
@@ -496,6 +497,28 @@ export default function MemoriesManager({
                 </li>
               );
             })}
+            {isSubmitting && !editingId && (
+              <li
+                aria-label="Saving memory item"
+                className="flex items-center justify-between gap-4 p-3.5 rounded-xl border border-[#E5E7EB] bg-gray-50/60"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-muted text-base font-mono px-1">::</span>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Skeleton className="w-7 h-7 rounded-md" />
+                    <Skeleton className="w-7 h-7 rounded-md" />
+                  </div>
+                  <div className="flex flex-col gap-1.5 min-w-0">
+                    <Skeleton className="h-4 w-36" />
+                    <Skeleton className="h-3 w-52" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Skeleton className="h-7 w-12 rounded-lg" />
+                  <Skeleton className="h-7 w-14 rounded-lg" />
+                </div>
+              </li>
+            )}
           </ol>
         )}
       </section>

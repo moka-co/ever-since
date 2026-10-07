@@ -4,6 +4,7 @@ import { useState, useRef, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { MediaRecord } from '@/lib/storage/schema';
 import { MAX_MEDIA_COUNT, isVideo } from '@/lib/media/validation';
+import { Skeleton } from '@/components/ui/skeleton';
 import Alert from './alert';
 
 interface MediaManagerProps {
@@ -153,12 +154,27 @@ export default function MediaManager({ initialMedia }: MediaManagerProps) {
       </form>
 
       {/* Media List / Grid */}
-      {mediaList.length === 0 ? (
+      {mediaList.length === 0 && !isUploading ? (
         <p className="text-xs text-muted py-4 text-center italic bg-gray-50/50 rounded-xl border border-dashed border-[#E5E7EB]">
           No media files uploaded yet. Select a photo or video above to get started.
         </p>
       ) : (
         <ul className="flex flex-col gap-2 mt-2">
+          {isUploading && (
+            <li
+              aria-label="Uploading media item"
+              className="flex items-center justify-between p-3 rounded-xl border border-[#E5E7EB] bg-gray-50/50"
+            >
+              <div className="flex items-center gap-3">
+                <Skeleton className="w-10 h-10 rounded-lg shrink-0" />
+                <div className="flex flex-col gap-1.5">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              </div>
+              <Skeleton className="h-6 w-14 rounded-md" />
+            </li>
+          )}
           {mediaList.map((item) => {
             const video = isVideo(item.filename);
             return (

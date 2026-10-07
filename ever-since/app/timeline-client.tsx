@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { motion, PanInfo, AnimatePresence } from "framer-motion";
 import type { MemoryRecord, MediaRecord } from "@/lib/storage/schema";
 import { isVideo } from "@/lib/media/validation";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface TimelineClientProps {
   memories: MemoryRecord[];
@@ -12,8 +13,11 @@ interface TimelineClientProps {
 
 export default function TimelineClient({ memories, media }: TimelineClientProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [loadedMediaIndex, setLoadedMediaIndex] = useState<number | null>(null);
   const [isRewinding, setIsRewinding] = useState(false);
   const rewindTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const isCurrentMediaLoaded = loadedMediaIndex === currentIndex;
 
   // Dots Logic (Instagram style sliding window)
   const maxDots = 5;
@@ -138,12 +142,34 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
                 >
                   <figure className="w-full h-full flex items-center justify-center relative bg-white">
                     {activeMedia ? (
-                      isVideo(activeMedia.filename) ? (
-                        <video src={mediaSrc} className="w-full h-full object-cover" autoPlay loop muted playsInline />
-                      ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={mediaSrc} alt="Memory media" className="w-full h-full object-cover" />
-                      )
+                      <>
+                        {!isCurrentMediaLoaded && (
+                          <Skeleton className="absolute inset-0 w-full h-full rounded-[32px]" />
+                        )}
+                        {isVideo(activeMedia.filename) ? (
+                          <video
+                            src={mediaSrc}
+                            className={`w-full h-full object-cover transition-opacity duration-300 ${
+                              isCurrentMediaLoaded ? 'opacity-100' : 'opacity-0'
+                            }`}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            onLoadedData={() => setLoadedMediaIndex(currentIndex)}
+                          />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={mediaSrc}
+                            alt="Memory media"
+                            className={`w-full h-full object-cover transition-opacity duration-300 ${
+                              isCurrentMediaLoaded ? 'opacity-100' : 'opacity-0'
+                            }`}
+                            onLoad={() => setLoadedMediaIndex(currentIndex)}
+                          />
+                        )}
+                      </>
                     ) : (
                       <div className="text-muted text-sm px-4 text-center">No media available</div>
                     )}
