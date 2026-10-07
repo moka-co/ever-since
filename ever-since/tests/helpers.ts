@@ -2,6 +2,8 @@ import Module from 'node:module';
 import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+// Set NODE_ENV to test to ensure file logging is disabled during test suites
+(process.env as Record<string, string | undefined>).NODE_ENV = 'test';
 
 // Intercept 'server-only' to allow testing in Node/tsx environment
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

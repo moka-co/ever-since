@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { writeFile, mkdir } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { readDb, updateDb } from '@/lib/storage/db';
 import {
@@ -10,7 +10,7 @@ import {
   MEDIA_DIR,
   MAX_MEDIA_COUNT,
 } from '@/lib/media/validation';
-import { processPhotoBuffer } from '@/lib/media/processor';
+import { processPhotoBuffer, writeMediaFile } from '@/lib/media/processor';
 import { errorResponse } from '@/lib/api';
 
 /**
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     if (!isVideo(file.name)) {
       try {
         const processed = await processPhotoBuffer(fileBuffer);
-        await writeFile(targetFilePath, processed.buffer);
+        await writeMediaFile(targetFilePath, processed.buffer, { id: nextId, filename, type: 'photo' });
         width = processed.width;
         height = processed.height;
       } catch (sharpError) {
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
         );
       }
     } else {
-      await writeFile(targetFilePath, fileBuffer);
+      await writeMediaFile(targetFilePath, fileBuffer, { id: nextId, filename, type: 'video' });
     }
 
     const newRecord = {

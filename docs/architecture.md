@@ -90,8 +90,9 @@ ever-since/
 - **Validation & Storage**:
   - `Zod`: Schema declaration, validation, and type inference for the JSON database, configurations, and API inputs.
   - `server-only`: Build-time guard preventing server-side code from leaking into client-side bundles.
-- **Authentication & Security**:
+- **Authentication, Security & Logging**:
   - `iron-session`: Encrypted, stateless cookie-based session handling.
+  - `pino`: for logging.
 - **Styling & Animation**:
   - `Tailwind CSS` & `@tailwindcss/postcss`: Utility-first CSS styling framework.
   - `Framer Motion`: Animation library for swipe gestures, card slides, and interactive spring physics.
@@ -105,7 +106,18 @@ ever-since/
 **Storage Layer**:
 - `lib/storage/`
     - `schema.ts` -> contains the Zod schema for the database (`db.json`)
-    - `db.ts` -> exports `readDb()` and `updateDb()` with serialized FIFO queue preventing race conditions. Overridable via `DB_PATH` in tests.
+    - `db.ts` -> exports `readDb()` and `updateDb()`. Overridable via `DB_PATH` in tests. Assuming single user single writer.
+
+**Logging**:
+- Logs are saved to `eversince.logs`, and logs are always written asynchronous. Logs are in JSON.
+
+The following info are logged:
+- Initial token genereted in `scripts/init-secret.mjs` only in backend logs, they are not sent to file.
+- Every login attempt is logged
+- Every API call is logged, including IP address of the user
+- Every write to database through `storage/db.ts` and to media through `processor.ts` and `validation.ts`
+
+Tests are NOT logged, the normal console.log that writes to stdout is enough.
 
 ### Containerization & Dockerfile
 
@@ -152,7 +164,9 @@ Then, `/customize` renders a dropdown of registered types; selecting one renders
 ### Data lifecycle
 Data is managed on local file system, deleting the photos would be the best thing to do whenever hosting on for example cloud, but for the suggested infrastructure for this project it is better to not annoy the user by deleting the volume i.e. the folder with the photos.
 
-Assumptions: you don't point directly your entire album in the media folder and you already have other backup solutions.
+Assumptions: 
+- you don't point directly your entire album in the media folder and you already have other backup solutions.
+- The app is single user, i'm assuming there is only a single writer at each time, so concurrent writing to db is not implemented.
 
 Backup of `db.json` is out of scope given the short lifespan of the app.
 

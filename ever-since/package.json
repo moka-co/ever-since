@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "tsx tests/proxy.test.ts && tsx tests/db.test.ts && tsx tests/media.test.ts && tsx tests/memories_and_config.test.ts",
+    "test": "tsx tests/proxy.test.ts && tsx tests/db.test.ts && tsx tests/media.test.ts && tsx tests/memories_and_config.test.ts && tsx tests/logger.test.ts",
     "check": "npm run lint && npm run typecheck && npm test",
     "prepare": "simple-git-hooks"
   },
@@ -19,6 +19,7 @@
     "framer-motion": "^13.5.0",
     "iron-session": "^9.0.1",
     "next": "16.3.6",
+    "pino": "^10.4.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "^0.0.1",

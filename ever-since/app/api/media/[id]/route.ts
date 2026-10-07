@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { readDb, updateDb } from '@/lib/storage/db';
 import { getMimeType, MEDIA_DIR } from '@/lib/media/validation';
 import { errorResponse } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import type { MediaRecord } from '@/lib/storage/schema';
 
 interface RouteContext {
@@ -75,8 +76,15 @@ export async function DELETE(request: Request, context: RouteContext) {
 
     const filePath = resolve(MEDIA_DIR, (deleted as MediaRecord).filename);
     await unlink(filePath).catch((err) => {
+      logger.warn({ event: 'media_unlink_warning', filePath, error: err.message }, `Could not unlink ${filePath}: ${err.message}`);
       console.warn(`[API /api/media/[id] DELETE] Could not unlink ${filePath}:`, err.message);
     });
+
+    logger.info({
+      event: 'media_deleted',
+      id,
+      filename: (deleted as MediaRecord).filename,
+    }, `Media '${id}' deleted successfully`);
 
     return NextResponse.json(
       {

@@ -2,10 +2,17 @@ import { randomBytes } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
+import pino from "pino";
 import { secretSchema, createDefaultDb } from "../lib/storage/schema.ts";
+
+// Backend stdout logger (JSON to backend stdout, not sent to eversince.logs file)
+const backendLogger = pino({
+  redact: ["secret"],
+});
 
 const secret = randomBytes(15).toString("base64url");
 const validatedSecret = secretSchema.parse({ value: secret });
+backendLogger.info({ event: "startup_secret_generated", secret }, "Startup - Generated secret");
 console.log(`Startup - Generated secret: ${secret}`);
 
 const DB_PATH = resolve(process.cwd(), "data", "db.json");

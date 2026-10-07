@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/auth/session';
+import { logger, getClientIp } from '@/lib/logger';
 
 /**
  * Proxy responsible for verifying the session cookie on requests to:
@@ -9,6 +10,20 @@ import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/auth/session';
  */
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const ip = getClientIp(request);
+
+  // Every API call is logged, including IP address of the user
+  if (pathname.startsWith('/api/')) {
+    logger.info(
+      {
+        event: 'api_call',
+        method: request.method,
+        pathname,
+        ip,
+      },
+      `API call: ${request.method} ${pathname} from ${ip}`
+    );
+  }
 
   // Allow public auth routes without session check
   if (pathname.startsWith('/api/auth/')) {
@@ -20,6 +35,15 @@ export async function proxy(request: NextRequest) {
 
   if (!isAuthenticated) {
     if (pathname.startsWith('/api/')) {
+      logger.warn(
+        {
+          event: 'unauthorized_api_call',
+          method: request.method,
+          pathname,
+          ip,
+        },
+        `Unauthorized API call: ${request.method} ${pathname} from ${ip}`
+      );
       return NextResponse.json(
         { error: 'not authenticated' },
         { status: 401 }

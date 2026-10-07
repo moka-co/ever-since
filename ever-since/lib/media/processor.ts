@@ -1,5 +1,7 @@
 import 'server-only';
 import sharp from 'sharp';
+import { writeFile } from 'node:fs/promises';
+import { logger } from '../logger';
 
 export interface ProcessedPhotoResult {
   buffer: Buffer;
@@ -20,9 +22,40 @@ export async function processPhotoBuffer(inputBuffer: Buffer): Promise<Processed
     .resize(2048, 2048, { fit: 'inside', withoutEnlargement: true })
     .toBuffer({ resolveWithObject: true });
 
+  logger.info(
+    {
+      event: 'media_processed',
+      inputBytes: inputBuffer.length,
+      outputBytes: data.length,
+      width: info.width,
+      height: info.height,
+    },
+    'Photo buffer processed successfully with Sharp'
+  );
+
   return {
     buffer: data,
     width: info.width,
     height: info.height,
   };
+}
+
+/**
+ * Writes processed media buffer to disk and logs the write operation.
+ */
+export async function writeMediaFile(
+  filePath: string,
+  buffer: Buffer,
+  metadata?: Record<string, unknown>
+): Promise<void> {
+  await writeFile(filePath, buffer);
+  logger.info(
+    {
+      event: 'media_write',
+      filePath,
+      bytes: buffer.length,
+      ...metadata,
+    },
+    `Media file written to disk: ${filePath}`
+  );
 }
