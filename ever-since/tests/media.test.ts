@@ -73,14 +73,14 @@ async function main() {
       );
     }
 
-    // Test 5: Quota limit reached (20 files)
+    // Test 5: Quota limit reached (50 files)
     {
-      console.log('\nTest 5: validateMediaConstraints (Unit), when media count is 20 (Scenario), should reject with quota exceeded error (Expectation)');
+      console.log('\nTest 5: validateMediaConstraints (Unit), when media count is 50 (Scenario), should reject with quota exceeded error (Expectation)');
       const smallPhoto = {
         name: 'small.jpg',
         size: 100 * 1024,
       };
-      const error = validateMediaConstraints(smallPhoto, 20);
+      const error = validateMediaConstraints(smallPhoto, 50);
       harness.assert(error !== null, 'Upload was rejected when quota is reached');
       harness.assert(
         error?.includes('quota exceeded') === true,
@@ -207,11 +207,11 @@ async function main() {
       harness.assert(traversalRes.status === 404, `Traversal request returns 404 (got ${traversalRes.status})`);
     }
 
-    // Test 11: Max 20 media quota schema enforcement
+    // Test 11: Max 50 media quota schema enforcement
     {
-      console.log('\nTest 11: Schema validation enforces max 20 media records limit');
+      console.log('\nTest 11: Schema validation enforces max 50 media records limit');
 
-      for (let i = 1; i <= 20; i++) {
+      for (let i = 1; i <= 50; i++) {
         await updateDb((current) => ({
           ...current,
           media: [
@@ -227,16 +227,16 @@ async function main() {
           ...current,
           media: [
             ...current.media,
-            { id: '21', filename: '21.png' },
+            { id: '51', filename: '51.png' },
           ],
         }));
       } catch {
         threw = true;
       }
 
-      harness.assert(threw, 'Zod schema threw error on 21st media addition');
+      harness.assert(threw, 'Zod schema threw error on 51st media addition');
       const finalDb = await readDb();
-      harness.assert(finalDb.media.length === 20, 'Database remains strictly at 20 items');
+      harness.assert(finalDb.media.length === 50, 'Database remains strictly at 50 items');
     }
 
     harness.finish('Media Constraints & Operations');

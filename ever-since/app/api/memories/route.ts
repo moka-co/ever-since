@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { readDb, updateDb } from '@/lib/storage/db';
+import { MAX_MEMORIES_COUNT } from '@/lib/storage/schema';
 import { errorResponse } from '@/lib/api';
 
 /**
@@ -24,6 +25,14 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
+    const db = await readDb();
+    if (db.memories.length >= MAX_MEMORIES_COUNT) {
+      return NextResponse.json(
+        { error: `Memories limit exceeded. A maximum of ${MAX_MEMORIES_COUNT} memories is allowed.` },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const newMemory = {
       id: randomUUID(),
@@ -32,9 +41,9 @@ export async function POST(request: Request) {
       mediaId: body.mediaId ?? null,
     };
 
-    await updateDb((db) => ({
-      ...db,
-      memories: [...db.memories, newMemory],
+    await updateDb((currentDb) => ({
+      ...currentDb,
+      memories: [...currentDb.memories, newMemory],
     }));
 
     return NextResponse.json(

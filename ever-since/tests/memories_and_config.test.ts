@@ -5,7 +5,7 @@ async function main() {
   const temp = await useTempDb('12345678901234567890');
 
   try {
-    const { readDb } = await import('../lib/storage/db');
+    const { readDb, updateDb } = await import('../lib/storage/db');
     const { GET: getConfig, PUT: putConfig } = await import('../app/api/config/route');
     const { GET: getMemories, POST: postMemory } = await import('../app/api/memories/route');
     const { PUT: putMemory, DELETE: deleteMemory } = await import('../app/api/memories/[id]/route');
@@ -53,7 +53,7 @@ async function main() {
 
     // Test 4: Config PUT invalid date format
     {
-      console.log('\nTest 4: PUT /api/config rejects invalid date string');
+      console.log('\nTest 4: Config PUT rejects invalid date string');
       const putReq = new Request('http://localhost:3000/api/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -61,6 +61,60 @@ async function main() {
       });
       const putRes = await putConfig(putReq);
       harness.assert(putRes.status === 400, `PUT returned 400 on invalid format (got ${putRes.status})`);
+    }
+
+    // Test 4b: Config PUT & GET sealMediaId
+    {
+      console.log('\nTest 4b: Config PUT & GET sealMediaId customization');
+      // 1. Initial GET check
+      const getRes = await getConfig();
+      const getData = await getRes.json();
+      harness.assert(getData.sealMediaId === null, 'Initial sealMediaId is null');
+
+      // 2. Reject non-existent media ID
+      const invalidMediaReq = new Request('http://localhost:3000/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sealMediaId: 'non-existent-media-id' }),
+      });
+      const invalidRes = await putConfig(invalidMediaReq);
+      harness.assert(invalidRes.status === 400, 'Non-existent sealMediaId rejected with 400');
+
+      // 3. Insert mock media record into DB
+      await updateDb((current) => ({
+        ...current,
+        media: [
+          ...current.media,
+          { id: 'seal-test-1', filename: 'seal.jpg', width: 400, height: 400 },
+        ],
+      }));
+
+      // 4. Update with existing media ID
+      const validMediaReq = new Request('http://localhost:3000/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sealMediaId: 'seal-test-1' }),
+      });
+      const validRes = await putConfig(validMediaReq);
+      harness.assert(validRes.status === 200, 'Existing sealMediaId accepted with 200');
+      const validData = await validRes.json();
+      harness.assert(validData.config.sealMediaId === 'seal-test-1', 'sealMediaId set in PUT response');
+
+      // 5. GET returns updated sealMediaId
+      const getResUpdated = await getConfig();
+      const getDataUpdated = await getResUpdated.json();
+      harness.assert(getDataUpdated.sealMediaId === 'seal-test-1', 'sealMediaId returned in GET');
+
+      // 6. Reset sealMediaId to null
+      const resetReq = new Request('http://localhost:3000/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sealMediaId: null }),
+      });
+      const resetRes = await putConfig(resetReq);
+      harness.assert(resetRes.status === 200, 'Resetting sealMediaId to null succeeds');
+      const resetData = await resetRes.json();
+      harness.assert(resetData.config.sealMediaId === null, 'sealMediaId reset to null');
     }
 
     // Test 5: Memories POST & GET
@@ -191,6 +245,42 @@ async function main() {
       });
       const invalidRes = await postMemory(invalidPostReq);
       harness.assert(invalidRes.status === 400, `POST returned 400 on >100 chars (got ${invalidRes.status})`);
+    }
+
+    // Test 10: Memories maximum quota of 50 enforcement
+    {
+      console.log('\nTest 10: Schema & API enforce maximum 50 memories limit');
+      const current = await readDb();
+      const needed = 50 - current.memories.length;
+      for (let i = 0; i < needed; i++) {
+        const postReq = new Request('http://localhost:3000/api/memories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            heading: `Memory fill ${i}`,
+            text: 'text',
+          }),
+        });
+        const res = await postMemory(postReq);
+        harness.assert(res.status === 201, `Fill memory ${i} created with 201`);
+      }
+
+      const dbAtCapacity = await readDb();
+      harness.assert(dbAtCapacity.memories.length === 50, 'Database memories count is exactly 50');
+
+      // Attempting 51st memory via API should be rejected with 400
+      const overflowReq = new Request('http://localhost:3000/api/memories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          heading: '51st memory',
+          text: 'overflow',
+        }),
+      });
+      const overflowRes = await postMemory(overflowReq);
+      harness.assert(overflowRes.status === 400, `51st memory rejected with 400 (got ${overflowRes.status})`);
+      const overflowData = await overflowRes.json();
+      harness.assert(overflowData.error.includes('Memories limit exceeded'), 'Error message informs of memories limit');
     }
 
     harness.finish('Memories & Customize Config');

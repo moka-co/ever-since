@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { readDb } from '@/lib/storage/db';
 import ConfigForm from './config-form';
+import SealPhotoManager from './seal-photo-manager';
 import MediaManager from './media-manager';
 import MemoriesManager from './memories-manager';
 
@@ -49,10 +50,16 @@ export default async function CustomizePage() {
         {/* 1. Anniversary Date Config */}
         <ConfigForm initialDate={db.config.anniversaryDate} />
 
-        {/* 2. Media Management */}
+        {/* 2. Login Screen Seal Photo / Meme Config */}
+        <SealPhotoManager
+          initialSealMediaId={db.config.sealMediaId ?? null}
+          mediaList={db.media}
+        />
+
+        {/* 3. Media Management */}
         <MediaManager initialMedia={db.media} />
 
-        {/* 3 & 4. Memory Authoring & Memories Timeline List */}
+        {/* 4 & 5. Memory Authoring & Memories Timeline List */}
         <MemoriesManager initialMemories={db.memories} mediaList={db.media} />
       </div>
     </main>

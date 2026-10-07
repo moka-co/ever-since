@@ -27,20 +27,23 @@ export const mediaRecordSchema = z.object({
 });
 export type MediaRecord = z.infer<typeof mediaRecordSchema>;
 
+export const MAX_MEMORIES_COUNT = 50;
+
 //Complete database schema
 export const dbSchema = z.object({
   secret: secretSchema,
   config: z.object({
-    anniversaryDate: z.string().date().or(z.literal(''))
+    anniversaryDate: z.string().date().or(z.literal('')),
+    sealMediaId: z.string().nullable().optional()
   }),
-  memories: z.array(memorySchema),
-  media: z.array(mediaRecordSchema).max(20, "Cannot exceed 20 media files")
+  memories: z.array(memorySchema).max(MAX_MEMORIES_COUNT, "Cannot exceed 50 memories"),
+  media: z.array(mediaRecordSchema).max(50, "Cannot exceed 50 media files")
 });
 export type DatabaseSchema = z.infer<typeof dbSchema>;
 
 // Initial database template without secret
 export const initialDb: Omit<DatabaseSchema, "secret"> = {
-  config: { anniversaryDate: "" },
+  config: { anniversaryDate: "", sealMediaId: null },
   memories: [],
   media: [],
 };

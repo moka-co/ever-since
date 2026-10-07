@@ -2,7 +2,7 @@
 
 import { useState, useRef, type FormEvent, type DragEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import type { MemoryRecord, MediaRecord } from '@/lib/storage/schema';
+import { MAX_MEMORIES_COUNT, type MemoryRecord, type MediaRecord } from '@/lib/storage/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import Alert from './alert';
 
@@ -37,6 +37,7 @@ export default function MemoriesManager({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const formRef = useRef<HTMLFormElement>(null);
+  const isQuotaFull = !editingId && memories.length >= MAX_MEMORIES_COUNT;
 
   function resetForm() {
     setEditingId(null);
@@ -68,6 +69,11 @@ export default function MemoriesManager({
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
+
+    if (isQuotaFull) {
+      setErrorMessage(`Memories limit reached. A maximum of ${MAX_MEMORIES_COUNT} memories is allowed. Please delete or edit existing memories.`);
+      return;
+    }
 
     const trimmedHeading = heading.trim();
     const trimmedText = text.trim();
@@ -359,7 +365,7 @@ export default function MemoriesManager({
           <div className="pt-2 flex items-center gap-3">
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isQuotaFull}
               className="rounded-lg bg-cta hover:bg-cta-hover text-white px-6 py-2.5 text-sm font-medium transition-colors shadow-xs disabled:opacity-50"
             >
               {isSubmitting
@@ -393,8 +399,14 @@ export default function MemoriesManager({
               Drag by the grip (::) or use arrows to reorder story cards
             </p>
           </div>
-          <span className="text-xs text-muted font-medium bg-gray-100 px-3 py-1 rounded-full border border-[#E5E7EB]">
-            {memories.length} {memories.length === 1 ? 'memory' : 'memories'}
+          <span
+            className={`text-xs font-medium px-3 py-1 rounded-full border ${
+              memories.length >= MAX_MEMORIES_COUNT
+                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                : 'bg-gray-100 text-foreground border-[#E5E7EB]'
+            }`}
+          >
+            {memories.length} / {MAX_MEMORIES_COUNT} memories used
           </span>
         </div>
 

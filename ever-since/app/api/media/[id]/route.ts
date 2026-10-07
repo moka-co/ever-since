@@ -66,6 +66,10 @@ export async function DELETE(request: Request, context: RouteContext) {
       deleted = item;
       return {
         ...db,
+        config: {
+          ...db.config,
+          sealMediaId: db.config.sealMediaId === id ? null : db.config.sealMediaId,
+        },
         media: db.media.filter((m) => m.id !== id),
       };
     });

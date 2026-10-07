@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 
-export const MAX_MEDIA_COUNT = 20;
+export const MAX_MEDIA_COUNT = 50;
 export const MAX_PHOTO_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 export const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
 

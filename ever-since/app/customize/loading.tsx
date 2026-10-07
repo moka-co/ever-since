@@ -39,7 +39,19 @@ export default function CustomizeLoading() {
           </div>
         </div>
 
-        {/* 2. Media Management Skeleton */}
+        {/* 2. Seal Photo Config Skeleton */}
+        <div className="flex flex-col gap-4 pb-8 border-b border-[#E5E7EB]">
+          <div className="flex flex-col gap-1.5">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-3 w-72" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-9 w-64 rounded-lg" />
+            <Skeleton className="h-9 w-32 rounded-lg" />
+          </div>
+        </div>
+
+        {/* 3. Media Management Skeleton */}
         <div className="flex flex-col gap-4 pb-8 border-b border-[#E5E7EB]">
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1.5">

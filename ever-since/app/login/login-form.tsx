@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 
 interface LoginFormProps {
   initialAuthenticated: boolean;
+  sealMedia?: { id: string; filename: string } | null;
 }
 
-export default function LoginForm({ initialAuthenticated }: LoginFormProps) {
+export default function LoginForm({ initialAuthenticated, sealMedia }: LoginFormProps) {
   const router = useRouter();
 
   // Authentication State
@@ -257,11 +258,34 @@ export default function LoginForm({ initialAuthenticated }: LoginFormProps) {
       {/* Right Column: Media / Meme Box */}
       <aside
         aria-label="Meme or photo"
-        className="w-full max-w-xs sm:max-w-sm h-64 sm:h-72 rounded-2xl bg-[#D1D5DB]/70 border border-[#E5E7EB] flex items-center justify-center p-6 text-center shadow-xs"
+        className="w-full max-w-xs sm:max-w-sm h-64 sm:h-72 rounded-2xl bg-[#D1D5DB]/70 border border-[#E5E7EB] flex items-center justify-center overflow-hidden text-center shadow-xs"
       >
-        <p className="text-base text-[#4B5563] leading-snug whitespace-pre-line font-medium">
-          cute seal photo{'\n'}or meme
-        </p>
+        {sealMedia ? (
+          sealMedia.filename.toLowerCase().match(/\.(mp4|webm|mov)$/) ? (
+            <video
+              src={`/api/media/${sealMedia.filename}`}
+              className="w-full h-full object-cover"
+              autoPlay
+              loop
+              muted
+              playsInline
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={`/api/media/${sealMedia.filename}`}
+              alt="Seal photo or meme"
+              className="w-full h-full object-cover"
+            />
+          )
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src="/e9d4a14432afcc3f2f8e21cb5608cf14.jpg"
+            alt="Default seal photo"
+            className="w-full h-full object-cover"
+          />
+        )}
       </aside>
     </div>
   );
