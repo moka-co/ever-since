@@ -70,12 +70,15 @@
 - **Concept**: Sentimental framing that turns authentication into part of the narrative (e.g., "Ever since [date]...").
 - **Card Visuals & Input**: Enclosed in a centered elevated white card with generous rounding (`rounded-[36px]` / `rounded-[40px]`), warm outline (`border-[#F1E8EC]`), and soft rose drop shadow (`shadow-[0_12px_40px_rgba(255,150,170,0.22)]`), cleanly elevated above the mesh canvas. Features a minimalist rounded input (`rounded-2xl border-[#F1E8EC] bg-[#FAF7F8]`) and a signature rose-gradient primary action button (`from-[#F472B6] to-[#FB7185]`) matching the rest of the application.
 - **Input Guidance**: Includes a subtle, romantic placeholder hint (e.g., `"Our date..."` or `"ask your nerd"`) to gently guide the user without breaking immersion.
-- **Failure States & Escalating Feedback (5 Attempts)**
+- **Failure States & Escalating Feedback (3 Attempts)**:
   - NOTE important: this is on the second login flow when the user has to insert the date. THIS IS NOT ON THE SECRET.
-  - Attempts 1–2: Gentle input shake with a warm retry prompt.
-  - Attempt 3: Playful pleading copy: *"I'm crying, 3 tries left"*.
-  - Attempt 4: Playful urgency copy: *"Why do you hate me, 2 tries left"*.
-  - Attempt 5: Final warning copy: *"You're almost single, 1 try left"*.
+  - Attempt 1: Gentle input shake with playful pleading copy: *"I'm crying, 3 tries left"*.
+  - Attempt 2: Gentle input shake with playful urgency copy: *"Why do you hate me, 2 tries left"*.
+  - Attempt 3: Gentle input shake with final warning copy: *"You're almost single, 1 try left"*.
+- **Lockout Screen (Cooldown Period)**:
+  - After 3 failed attempts, activates a 30-second lockout cooldown.
+  - Displays a playful cooldown screen: *"Don't talk to me for [MM:SS]..."* alongside an active real-time countdown timer before retrying is automatically unlocked.
+  - Logging: A warning log event (`date_cooldown_activated`) is emitted in backend logs strictly when the cooldown is activated. Intermediate failed attempts are not logged.
 
 ### Date-Entry Screen (Story Initiation)
 - **Concept**: Occurs immediately after successful authentication to kick off the memory timeline.

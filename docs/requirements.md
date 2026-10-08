@@ -14,10 +14,9 @@ In practice for technical simplicity, the base user is also the admin user. Two 
 ### Base User
 The base user can:
 - Insert a password given by the admin user -> this completes the log in
-- In case of incorrect password attempts, receive escalating playful feedback (up to 5 attempts)
-- If locked out after 5 failed attempts, view a dedicated playful lockout screen with an active cooldown countdown timer before being allowed to retry
+- In case of incorrect password attempts, receive standard error feedback
 - Reload the page or close the page and still be logged in for 72 hours (from the login).
-- Insert the date to start the main flow
+- Insert the date to start the main flow (in case of incorrect date entries, receive escalating playful feedback across 3 attempts, followed by a 30-second cooldown lockout screen with live countdown timer)
 - Experience the main flow, including interacting with items and view every memory.
 - The user can either swipe (mobile) left/right or click on "<" or ">" arrow to go to prev/next memory
 - At any point in the main flow, the base user can "rewind" (start from the beginning) and also go back
@@ -61,7 +60,7 @@ Buttons idea to implement:
 - Custom interactions like dodging yes/no button need non-mouse-dependent fallbacks.
 - Alt-text isn't required
 
-**Security**: basic rate limiting on `/login`, lock out after 5 failed attemps (the same IP cannot retry again)
+**Security**: basic rate limiting on `/login`, lock out after 5 failed attemps (the same IP cannot retry again, returns HTTP 403)
 
 **Reliability**: if a write to `db.json` failes, fail silently to the end user but log the error server-side for later review. Ideally since the admin user also checks the entire flow, it should catch up any errors before showing it to the other user. 
 
@@ -71,3 +70,8 @@ Buttons idea to implement:
 
 ## Appendix - Rationale for the name
 I named the project **Ever-Since** because it's a phrase people already say naturally — "ever since we met...", "ever since that day..." — so it reads as warm and sentimental without trying too hard. It's also intentionally open-ended: unlike a name tied to "one year" or "two years," it doesn't lock the project to a single milestone, meaning the same site and name can be reused for every future anniversary without ever feeling dated. The phrase also implies continuity, the sense of a story still unfolding, which fits the photo-reveal format especially well: each photo becomes its own "since then" moment in an ongoing narrative rather than a static gallery. This theme extends naturally into the UI itself, to start the year rewind, the lock screen headline can read something like "Ever since [date]..." with a pseudo-password field placed right below it, turning what would otherwise be a mundane authentication step into part of the emotional framing. The same flexibility carries through to the tagline, which can be customized per year ("Ever since that day...", "Ever since you said yes", "Ever since us") while the site name stays constant, letting the project grow and adapt alongside the relationship it's built for.
+
+## Discarded features / out of scope
+- **Rate limiting detailed feedback & HTTP 429**: Originally, the app was supposed to return an HTTP 429 Too Many Requests status code with a `retryAfter` payload after 5 failed attempts.
+- **Cooldown Timer UI**: A dedicated playful lockout screen with an active real-time countdown timer before retrying is allowed.
+- **Escalating Feedback**: In case of incorrect password attempts, the UI would show escalating playful feedback (up to 5 attempts).

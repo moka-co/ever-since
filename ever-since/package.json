@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "tsx tests/proxy.test.ts && tsx tests/db.test.ts && tsx tests/media.test.ts && tsx tests/memories_and_config.test.ts && tsx tests/logger.test.ts && tsx tests/lockout.test.ts",
+    "test": "tsx tests/proxy.test.ts && tsx tests/db.test.ts && tsx tests/media.test.ts && tsx tests/memories_and_config.test.ts && tsx tests/logger.test.ts && tsx tests/lockout.test.ts && tsx tests/date_verification.test.ts",
     "check": "npm run lint && npm run typecheck && npm test",
     "prepare": "simple-git-hooks"
   },

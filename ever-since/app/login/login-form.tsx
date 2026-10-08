@@ -1,7 +1,13 @@
 'use client';
 
-import { useState, useRef, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
+
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
 
 interface LoginFormProps {
   initialAuthenticated: boolean;
@@ -22,10 +28,47 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
   const [month, setMonth] = useState('');
   const [year, setYear] = useState('');
   const [dateError, setDateError] = useState('');
+  const [isShaking, setIsShaking] = useState(false);
+  const [isVerifyingDate, setIsVerifyingDate] = useState(false);
+  const [isLockedOut, setIsLockedOut] = useState(false);
+  const [remainingCooldownSeconds, setRemainingCooldownSeconds] = useState(0);
 
   const dayRef = useRef<HTMLInputElement>(null);
   const monthRef = useRef<HTMLInputElement>(null);
   const yearRef = useRef<HTMLInputElement>(null);
+
+  // Check initial date lockout status on mount
+  useEffect(() => {
+    fetch('/api/auth/verify-date')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.isLockedOut && data.remainingSeconds > 0) {
+          setIsLockedOut(true);
+          setRemainingCooldownSeconds(data.remainingSeconds);
+        }
+      })
+      .catch(() => {
+        // Silently ignore network errors during initial status check
+      });
+  }, []);
+
+  // Live countdown timer for 30-second cooldown lockout
+  useEffect(() => {
+    if (!isLockedOut || remainingCooldownSeconds <= 0) return;
+
+    const timer = setInterval(() => {
+      setRemainingCooldownSeconds((prev) => {
+        if (prev <= 1) {
+          setIsLockedOut(false);
+          setDateError('');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isLockedOut, remainingCooldownSeconds]);
 
   // Password submission (View 1 -> View 2)
   async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
@@ -84,8 +127,8 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
     setDateError('');
   }
 
-  // Date submission (View 2 -> Main Memory Flow "/")
-  function handleDateSubmit(e: FormEvent<HTMLFormElement>) {
+  // Date submission with escalating feedback & 30-second cooldown
+  async function handleDateSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const d = parseInt(day, 10);
     const m = parseInt(month, 10);
@@ -106,8 +149,40 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
       return;
     }
 
-    // Transition to main memory flow
-    router.push('/');
+    setIsVerifyingDate(true);
+
+    try {
+      const response = await fetch('/api/auth/verify-date', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ day, month, year }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.valid) {
+        // Transition to main memory flow
+        router.push('/');
+        return;
+      }
+
+      // Failed attempt: trigger gentle shake animation
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 400);
+
+      if (data.lockedOut) {
+        setIsLockedOut(true);
+        setRemainingCooldownSeconds(data.remainingSeconds || 30);
+      } else {
+        setDateError(data.message || 'Incorrect date');
+      }
+    } catch {
+      setDateError('A network error occurred. Please try again.');
+    } finally {
+      setIsVerifyingDate(false);
+    }
   }
 
   /* -------------------------------------------------------------------------- */
@@ -180,91 +255,133 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
   /* -------------------------------------------------------------------------- */
   return (
     <div className="flex flex-col md:flex-row items-center justify-center gap-8 w-full max-w-4xl">
-      {/* Left Column: Date Input Card */}
-      <section
-        aria-labelledby="story-initiation-heading"
-        className="w-80 sm:w-96 max-w-full rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_12px_40px_rgba(255,150,170,0.22)] p-7 sm:p-8 flex flex-col items-center text-center select-none"
-      >
-        <h2
-          id="story-initiation-heading"
-          className="text-2xl font-bold text-foreground text-center w-full mb-6"
+      {/* Left Column: Date Input Card or Cooldown Lockout Card */}
+      {isLockedOut ? (
+        <section
+          aria-labelledby="cooldown-heading"
+          className="w-80 sm:w-96 max-w-full rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_12px_40px_rgba(255,150,170,0.22)] p-7 sm:p-8 flex flex-col items-center text-center select-none"
         >
-          Ever Since...
-        </h2>
-
-        <form onSubmit={handleDateSubmit} className="w-full flex flex-col items-center">
-          <fieldset className="flex items-center justify-center gap-2 mb-3">
-            <legend className="sr-only">Our date (DD / MM / YYYY)</legend>
-            <input
-              ref={dayRef}
-              type="text"
-              name="day"
-              placeholder="DD"
-              maxLength={2}
-              inputMode="numeric"
-              pattern="[0-9]*"
-              aria-label="Day"
-              value={day}
-              onChange={handleDayChange}
-              className="w-14 h-12 text-center rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8] text-base font-semibold text-foreground focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta transition-colors"
-              autoFocus
-              required
-            />
-            <span className="text-muted/60 font-light text-lg">/</span>
-            <input
-              ref={monthRef}
-              type="text"
-              name="month"
-              placeholder="MM"
-              maxLength={2}
-              inputMode="numeric"
-              pattern="[0-9]*"
-              aria-label="Month"
-              value={month}
-              onChange={handleMonthChange}
-              className="w-14 h-12 text-center rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8] text-base font-semibold text-foreground focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta transition-colors"
-              required
-            />
-            <span className="text-muted/60 font-light text-lg">/</span>
-            <input
-              ref={yearRef}
-              type="text"
-              name="year"
-              placeholder="YYYY"
-              maxLength={4}
-              inputMode="numeric"
-              pattern="[0-9]*"
-              aria-label="Year"
-              value={year}
-              onChange={handleYearChange}
-              className="w-20 h-12 text-center rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8] text-base font-semibold text-foreground focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta transition-colors"
-              required
-            />
-          </fieldset>
-
-          {/* Space for error message */}
-          <div className="min-h-5 mb-3 flex items-center justify-center">
-            <span
-              className={`text-xs ${
-                dateError ? 'text-rose-500 font-medium' : 'text-muted'
-              }`}
-            >
-              {dateError || 'Space for errors message'}
-            </span>
+          {/* Soft progress indicator */}
+          <div className="flex items-center justify-center gap-1.5 mb-5">
+            <span className="w-2 h-2 rounded-full bg-[#F1D6DE]" />
+            <span className="w-6 h-2 rounded-full bg-[#D4537E] animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-[#F1D6DE]" />
           </div>
 
-          {/* Gradient Primary Action Button matching main flow style */}
-          <button
-            type="submit"
-            className="rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white px-7 py-2.5 text-sm font-semibold transition-all shadow-[0_4px_16px_rgba(244,114,182,0.4)] hover:shadow-[0_6px_20px_rgba(244,114,182,0.55)] hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
+          <h2
+            id="cooldown-heading"
+            className="text-2xl font-bold text-foreground text-center w-full mb-2"
           >
-            Start Story
-          </button>
+            {`Don't talk to me for ${formatTime(remainingCooldownSeconds)}...`}
+          </h2>
 
-          {/* Hint: our date */}
-          <p className="mt-3 text-xs text-muted">Hint: our date</p>
-        </form>
-      </section>
+          <p className="text-xs text-muted mb-6">
+            Too many wrong guesses. Take a moment to remember the day our story began!
+          </p>
+
+          {/* Active Countdown Box */}
+          <div className="w-32 py-3 rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8] text-2xl font-bold text-foreground tracking-wider mb-6">
+            {formatTime(remainingCooldownSeconds)}
+          </div>
+
+          <p className="text-[11px] text-muted/80">
+            Retrying will be unlocked automatically when the timer reaches 00:00
+          </p>
+        </section>
+      ) : (
+        <section
+          aria-labelledby="story-initiation-heading"
+          className="w-80 sm:w-96 max-w-full rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_12px_40px_rgba(255,150,170,0.22)] p-7 sm:p-8 flex flex-col items-center text-center select-none"
+        >
+          <h2
+            id="story-initiation-heading"
+            className="text-2xl font-bold text-foreground text-center w-full mb-6"
+          >
+            Ever Since...
+          </h2>
+
+          <form onSubmit={handleDateSubmit} className="w-full flex flex-col items-center">
+            <fieldset
+              className={`flex items-center justify-center gap-2 mb-3 transition-transform ${
+                isShaking ? 'animate-gentle-shake' : ''
+              }`}
+            >
+              <legend className="sr-only">Our date (DD / MM / YYYY)</legend>
+              <input
+                ref={dayRef}
+                type="text"
+                name="day"
+                placeholder="DD"
+                maxLength={2}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                aria-label="Day"
+                value={day}
+                onChange={handleDayChange}
+                disabled={isVerifyingDate}
+                className="w-14 h-12 text-center rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8] text-base font-semibold text-foreground focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta transition-colors disabled:opacity-50"
+                autoFocus
+                required
+              />
+              <span className="text-muted/60 font-light text-lg">/</span>
+              <input
+                ref={monthRef}
+                type="text"
+                name="month"
+                placeholder="MM"
+                maxLength={2}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                aria-label="Month"
+                value={month}
+                onChange={handleMonthChange}
+                disabled={isVerifyingDate}
+                className="w-14 h-12 text-center rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8] text-base font-semibold text-foreground focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta transition-colors disabled:opacity-50"
+                required
+              />
+              <span className="text-muted/60 font-light text-lg">/</span>
+              <input
+                ref={yearRef}
+                type="text"
+                name="year"
+                placeholder="YYYY"
+                maxLength={4}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                aria-label="Year"
+                value={year}
+                onChange={handleYearChange}
+                disabled={isVerifyingDate}
+                className="w-20 h-12 text-center rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8] text-base font-semibold text-foreground focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta transition-colors disabled:opacity-50"
+                required
+              />
+            </fieldset>
+
+            {/* Space for error message */}
+            <div className="min-h-5 mb-3 flex items-center justify-center">
+              <span
+                className={`text-xs ${
+                  dateError ? 'text-rose-500 font-medium' : 'text-muted'
+                }`}
+              >
+                {dateError || 'Space for errors message'}
+              </span>
+            </div>
+
+            {/* Gradient Primary Action Button matching main flow style */}
+            <button
+              type="submit"
+              disabled={isVerifyingDate}
+              className="rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white px-7 py-2.5 text-sm font-semibold transition-all shadow-[0_4px_16px_rgba(244,114,182,0.4)] hover:shadow-[0_6px_20px_rgba(244,114,182,0.55)] hover:scale-105 active:scale-95 disabled:opacity-50 disabled:from-gray-300 disabled:to-gray-300 disabled:shadow-none hover:scale-102 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
+            >
+              {isVerifyingDate ? 'Checking...' : 'Start Story'}
+            </button>
+
+            {/* Hint: our date */}
+            <p className="mt-3 text-xs text-muted">Hint: our date</p>
+          </form>
+        </section>
+      )}
 
       {/* Right Column: Media / Seal Card */}
       <aside
