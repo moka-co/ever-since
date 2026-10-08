@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { readDb } from '@/lib/storage/db';
+import { reconcileMediaLibrary } from '@/lib/media/sync';
 import ConfigForm from './config-form';
 import SealPhotoManager from './seal-photo-manager';
 import MediaManager from './media-manager';
@@ -8,6 +9,7 @@ import MemoriesManager from './memories-manager';
 export const dynamic = 'force-dynamic';
 
 export default async function CustomizePage() {
+  await reconcileMediaLibrary().catch(() => {});
   const db = await readDb();
 
   return (

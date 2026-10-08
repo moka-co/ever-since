@@ -1,6 +1,8 @@
 import { useTempDb, TestHarness } from './helpers';
 import sharp from 'sharp';
 import { NextRequest } from 'next/server';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
 async function main() {
   const harness = new TestHarness();
@@ -142,26 +144,18 @@ async function main() {
 
     // Test 9: Media API Upload, Serve, and Delete route integration
     {
-      console.log('\nTest 9: Media Routes POST, GET, DELETE integration');
+      console.log('\nTest 9: Media Routes POST, GET, DELETE integration using public test photo');
       const { POST: postMedia, GET: getMedia } = await import('../app/api/media/route');
       const { GET: getMediaById, DELETE: deleteMediaById } = await import('../app/api/media/[id]/route');
 
-      // 1. Upload via POST
-      const testImageBuffer = await sharp({
-        create: {
-          width: 50,
-          height: 50,
-          channels: 3,
-          background: { r: 10, g: 20, b: 30 },
-        },
-      })
-        .png()
-        .toBuffer();
+      // 1. Upload via POST using public test photo
+      const testPhotoPath = join(process.cwd(), 'public', 'e9d4a14432afcc3f2f8e21cb5608cf14.jpg');
+      const testPhotoBuffer = await readFile(testPhotoPath);
 
       const formData = new FormData();
       formData.append(
         'file',
-        new File([testImageBuffer], 'test.png', { type: 'image/png' })
+        new File([testPhotoBuffer], 'e9d4a14432afcc3f2f8e21cb5608cf14.jpg', { type: 'image/jpeg' })
       );
 
       const postReq = new NextRequest('http://localhost:3000/api/media', {
@@ -174,11 +168,16 @@ async function main() {
       const postData = await postRes.json();
       const uploadedId = postData.media.id;
       harness.assert(Boolean(uploadedId), 'Uploaded ID exists');
+      harness.assert(
+        postData.media.filename === 'e9d4a14432afcc3f2f8e21cb5608cf14.jpg',
+        'Original filename is preserved without unnecessary renaming'
+      );
 
       // 2. Fetch via GET list
       const listRes = await getMedia();
       const listData = await listRes.json();
       harness.assert(listData.media.length === 1, 'Media list now contains 1 item');
+      harness.assert(listData.media[0].filename === 'e9d4a14432afcc3f2f8e21cb5608cf14.jpg', 'Media list entry has original filename');
 
       // 3. Serve via GET [id]
       const serveRes = await getMediaById(new Request(`http://localhost:3000/api/media/${uploadedId}`), {
@@ -237,6 +236,53 @@ async function main() {
       harness.assert(threw, 'Zod schema threw error on 51st media addition');
       const finalDb = await readDb();
       harness.assert(finalDb.media.length === 50, 'Database remains strictly at 50 items');
+    }
+
+    // Test 12: Filesystem upload to media/ and reconciliation discovery
+    {
+      console.log('\nTest 12: Direct filesystem upload to media/ folder and automatic reconciliation');
+      const { GET: getMedia, POST: postMedia } = await import('../app/api/media/route');
+
+      // Reset db media array to empty
+      await updateDb((current) => ({ ...current, media: [] }));
+
+      // Directly write a file into temp.mediaDir on disk
+      const diskFilename = '03a27da4-bbe2-4790-b32b-e70f601032e6.jpg';
+      const diskTarget = join(temp.mediaDir, diskFilename);
+      const testPhotoPath = join(process.cwd(), 'public', 'e9d4a14432afcc3f2f8e21cb5608cf14.jpg');
+      const photoBuffer = await readFile(testPhotoPath);
+      await writeFile(diskTarget, photoBuffer);
+
+      // Trigger reconciliation via GET /api/media
+      const getRes = await getMedia();
+      harness.assert(getRes.status === 200, 'GET /api/media returns 200');
+      const getData = await getRes.json();
+      harness.assert(getData.media.length === 1, 'Reconciliation discovered 1 file from filesystem');
+
+      const item = getData.media[0];
+      harness.assert(item.filename === diskFilename, `Filename is preserved: ${item.filename}`);
+      harness.assert(
+        item.id === '03a27da4-bbe2-4790-b32b-e70f601032e6',
+        `ID matches UUID structure from filename: ${item.id}`
+      );
+      harness.assert(typeof item.width === 'number' && item.width > 0, 'Image width was extracted by Sharp');
+      harness.assert(typeof item.height === 'number' && item.height > 0, 'Image height was extracted by Sharp');
+
+      // Test 13: Uploading a file that already exists uses existing record
+      console.log('\nTest 13: Uploading existing file uses already available media record');
+      const formData = new FormData();
+      formData.append(
+        'file',
+        new File([photoBuffer], diskFilename, { type: 'image/jpeg' })
+      );
+      const postReq = new NextRequest('http://localhost:3000/api/media', {
+        method: 'POST',
+        body: formData,
+      });
+      const postRes = await postMedia(postReq);
+      harness.assert(postRes.status === 200, 'POST returned 200 for already available media');
+      const postData = await postRes.json();
+      harness.assert(postData.media.id === item.id, 'Returns existing media record');
     }
 
     harness.finish('Media Constraints & Operations');

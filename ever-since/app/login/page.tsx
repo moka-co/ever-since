@@ -1,10 +1,12 @@
 import LoginForm from './login-form';
 import { isSessionAuthenticated } from '@/lib/auth/session';
 import { readDb } from '@/lib/storage/db';
+import { reconcileMediaLibrary } from '@/lib/media/sync';
 
 export const dynamic = 'force-dynamic';
 
 export default async function LoginPage() {
+  await reconcileMediaLibrary().catch(() => {});
   const authenticated = await isSessionAuthenticated();
   const db = await readDb().catch(() => null);
 

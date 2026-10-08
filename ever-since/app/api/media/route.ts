@@ -1,32 +1,33 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { mkdir } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { resolve, basename } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { readDb, updateDb } from '@/lib/storage/db';
 import {
   validateMediaConstraints,
-  getNextMediaId,
   getExtension,
   isVideo,
   MEDIA_DIR,
   MAX_MEDIA_COUNT,
 } from '@/lib/media/validation';
 import { processPhotoBuffer, writeMediaFile } from '@/lib/media/processor';
+import { reconcileMediaLibrary, UUID_REGEX } from '@/lib/media/sync';
 import { errorResponse } from '@/lib/api';
 import { logger } from '@/lib/logger';
 
 /**
  * GET /api/media
  * Authenticated
- * Returns the media library and current quota inspection.
+ * Reconciles filesystem files with db.json, returns the media library and current quota.
  */
 export async function GET() {
   try {
-    const db = await readDb();
-    const used = db.media.length;
+    const media = await reconcileMediaLibrary();
+    const used = media.length;
 
     return NextResponse.json(
       {
-        media: db.media,
+        media,
         quota: {
           total: MAX_MEDIA_COUNT,
           used,
@@ -43,7 +44,7 @@ export async function GET() {
 /**
  * POST /api/media
  * Authenticated
- * Uploads a photo or video, enforces constraints, processes photos via Sharp,
+ * Uploads a photo or video without unnecessary renaming, processes photos via Sharp,
  * saves binary to media/, and records metadata in db.json.
  */
 export async function POST(request: NextRequest) {
@@ -59,6 +60,21 @@ export async function POST(request: NextRequest) {
     }
 
     const currentDb = await readDb();
+
+    // Check if a media record with this exact filename is already available
+    const existingRecord = currentDb.media.find(
+      (m) => m.filename.toLowerCase() === file.name.toLowerCase()
+    );
+    if (existingRecord) {
+      return NextResponse.json(
+        {
+          message: 'Media already available',
+          media: existingRecord,
+        },
+        { status: 200 }
+      );
+    }
+
     const validationError = validateMediaConstraints(
       { name: file.name, size: file.size },
       currentDb.media.length
@@ -86,9 +102,21 @@ export async function POST(request: NextRequest) {
       `Media validation passed for ${file.name}`
     );
 
-    const nextId = getNextMediaId(currentDb.media);
-    const ext = getExtension(file.name);
-    const filename = `${nextId}${ext}`;
+    // Preserve original filename, sanitizing directory separators
+    const cleanBasename = basename(file.name).replace(/[^\w\d._-]/g, '_');
+    const ext = getExtension(cleanBasename);
+    const nameWithoutExt = cleanBasename.slice(0, cleanBasename.length - ext.length);
+
+    let filename = cleanBasename;
+    // Handle collision if file already exists in db or on disk
+    if (currentDb.media.some((m) => m.filename.toLowerCase() === filename.toLowerCase())) {
+      filename = `${nameWithoutExt}-${Date.now()}${ext}`;
+    }
+
+    // Determine ID: follow UUID structure (or use filename's UUID if present)
+    const id = UUID_REGEX.test(nameWithoutExt)
+      ? nameWithoutExt.toLowerCase()
+      : randomUUID();
 
     await mkdir(MEDIA_DIR, { recursive: true });
     const targetFilePath = resolve(MEDIA_DIR, filename);
@@ -97,10 +125,10 @@ export async function POST(request: NextRequest) {
     let width: number | undefined;
     let height: number | undefined;
 
-    if (!isVideo(file.name)) {
+    if (!isVideo(filename)) {
       try {
         const processed = await processPhotoBuffer(fileBuffer);
-        await writeMediaFile(targetFilePath, processed.buffer, { id: nextId, filename, type: 'photo' });
+        await writeMediaFile(targetFilePath, processed.buffer, { id, filename, type: 'photo' });
         width = processed.width;
         height = processed.height;
       } catch (sharpError) {
@@ -111,11 +139,11 @@ export async function POST(request: NextRequest) {
         );
       }
     } else {
-      await writeMediaFile(targetFilePath, fileBuffer, { id: nextId, filename, type: 'video' });
+      await writeMediaFile(targetFilePath, fileBuffer, { id, filename, type: 'video' });
     }
 
     const newRecord = {
-      id: nextId,
+      id,
       filename,
       ...(width ? { width } : {}),
       ...(height ? { height } : {}),

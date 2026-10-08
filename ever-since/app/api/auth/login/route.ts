@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyPassword, saveAuthenticatedSession } from '@/lib/auth/session';
 import { isIpBanned, recordFailedAttempt, resetFailedAttempts } from '@/lib/auth/lockout';
+import { reconcileMediaLibrary } from '@/lib/media/sync';
 import { logger, getClientIp } from '@/lib/logger';
 
 /**
@@ -51,6 +52,11 @@ export async function POST(request: NextRequest) {
   }
 
   resetFailedAttempts(ip);
+
+  // Reconcile filesystem media library with db.json on login
+  await reconcileMediaLibrary().catch((err) => {
+    logger.warn({ event: 'reconcile_on_login_failed', error: String(err) }, 'Reconciliation on login failed');
+  });
 
   try {
     await saveAuthenticatedSession();
