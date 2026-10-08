@@ -5,7 +5,7 @@
 # ==============================================================================
 
 # Stage 1: Dependencies (deps)
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
@@ -13,7 +13,7 @@ COPY ever-since/package.json ever-since/package-lock.json* ./
 RUN npm ci
 
 # Stage 2: Build (build)
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -25,7 +25,7 @@ ENV NODE_ENV=production
 RUN npm run build
 
 # Stage 3: Production Runtime (runtime)
-FROM node:20-alpine AS runtime
+FROM node:22-alpine AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production
