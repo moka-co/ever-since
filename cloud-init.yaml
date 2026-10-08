@@ -1,0 +1,22 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+users:
+  - name: deploy
+    groups: [sudo, docker]
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+packages:
+  - docker.io
+  - git
+  - caddy
+swap:
+  filename: /swapfile
+  size: 2G
+runcmd:
+  - systemctl enable --now docker
+  - mkdir -p /home/deploy/.ssh
+  - cp /root/.ssh/authorized_keys /home/deploy/.ssh/authorized_keys
+  - chown -R deploy:deploy /home/deploy/.ssh
+  - chmod 700 /home/deploy/.ssh
+  - chmod 600 /home/deploy/.ssh/authorized_keys
