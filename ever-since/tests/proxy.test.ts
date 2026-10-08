@@ -2,10 +2,13 @@ import { useTempDb, TestHarness } from './helpers';
 import { NextRequest } from 'next/server';
 import { sealData } from 'iron-session';
 import { createHash } from 'node:crypto';
+import { join } from 'node:path';
 
 async function main() {
   const harness = new TestHarness();
   const temp = await useTempDb('12345678901234567890');
+  const testBannedIpPath = join(temp.dir, 'banned_ip.log');
+  process.env.BANNED_IP_PATH = testBannedIpPath;
 
   try {
     const { proxy } = await import('../proxy');
@@ -119,8 +122,29 @@ async function main() {
       `Expired session on / redirects to /login`
     );
 
+    // 6. Verify banned IP is rejected with 403 Forbidden
+    const { writeFile } = await import('node:fs/promises');
+    await writeFile(testBannedIpPath, '192.168.1.99\n', 'utf8');
+
+    const bannedReq = new NextRequest(new URL('http://localhost:3000/api/config'), {
+      headers: {
+        'x-forwarded-for': '192.168.1.99',
+      },
+    });
+    const bannedRes = await proxy(bannedReq);
+    harness.assert(
+      bannedRes.status === 403,
+      `Banned IP on /api/config returns 403 (got ${bannedRes.status})`
+    );
+    const bannedBody = await bannedRes.json();
+    harness.assert(
+      bannedBody.error === 'IP is locked out',
+      `Banned IP returns { error: 'IP is locked out' }`
+    );
+
     harness.finish('Proxy Verification');
   } finally {
+    delete process.env.BANNED_IP_PATH;
     await temp.cleanup();
   }
 }

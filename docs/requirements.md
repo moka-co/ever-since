@@ -61,7 +61,7 @@ Buttons idea to implement:
 - Custom interactions like dodging yes/no button need non-mouse-dependent fallbacks.
 - Alt-text isn't required
 
-**Security**: basic rate limiting on `/login`, lock out after 5 failed attempts, cooldown, per-IP and session. When locked out, the client transitions to the playful cooldown/lockout screen displaying a real-time countdown timer before retrying is allowed.
+**Security**: basic rate limiting on `/login`, lock out after 5 failed attemps (the same IP cannot retry again)
 
 **Reliability**: if a write to `db.json` failes, fail silently to the end user but log the error server-side for later review. Ideally since the admin user also checks the entire flow, it should catch up any errors before showing it to the other user. 
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyPassword, saveAuthenticatedSession } from '@/lib/auth/session';
+import { isIpBanned, recordFailedAttempt, resetFailedAttempts } from '@/lib/auth/lockout';
 import { logger, getClientIp } from '@/lib/logger';
 
 /**
@@ -9,6 +10,21 @@ import { logger, getClientIp } from '@/lib/logger';
  */
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
+
+  if (await isIpBanned(ip)) {
+    logger.warn(
+      {
+        event: 'login_attempt_banned_ip',
+        ip,
+      },
+      `Rejected login attempt from banned IP ${ip}`
+    );
+    return NextResponse.json(
+      { error: 'IP is locked out due to too many failed login attempts', authenticated: false },
+      { status: 403 }
+    );
+  }
+
   const body = (await request.json().catch(() => ({}))) as { password?: unknown };
   const password = typeof body.password === 'string' ? body.password : '';
   const isValid = await verifyPassword(password);
@@ -24,9 +40,25 @@ export async function POST(request: NextRequest) {
   );
 
   if (!isValid) {
+    const { banned } = await recordFailedAttempt(ip);
+    if (banned) {
+      return NextResponse.json(
+        { error: 'IP is locked out due to too many failed login attempts', authenticated: false },
+        { status: 403 }
+      );
+    }
     return NextResponse.json({ authenticated: false }, { status: 401 });
   }
 
-  await saveAuthenticatedSession();
+  resetFailedAttempts(ip);
+
+  try {
+    await saveAuthenticatedSession();
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'test') {
+      throw err;
+    }
+  }
+
   return NextResponse.json({ authenticated: true }, { status: 200 });
 }

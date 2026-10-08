@@ -64,6 +64,7 @@ ever-since/
     ├── lib/
     │   ├── api.ts
     │   ├── auth/
+    │   │   ├── lockout.ts
     │   │   └── session.ts
     │   ├── media/
     │   │   ├── processor.ts
@@ -73,12 +74,16 @@ ever-since/
     │       └── schema.ts
     ├── scripts/
     │   └── init-secret.mjs
-    └── tests/
-        ├── helpers.ts
-        ├── db.test.ts
-        ├── media.test.ts
-        ├── memories_and_config.test.ts
-        └── proxy.test.ts
+    ├── tests/
+    │   ├── helpers.ts
+    │   ├── db.test.ts
+    │   ├── lockout.test.ts
+    │   ├── logger.test.ts
+    │   ├── media.test.ts
+    │   ├── memories_and_config.test.ts
+    │   └── proxy.test.ts
+    ├── banned_ip.log              # Generated runtime IP lockout list
+    └── eversince.logs             # Generated runtime log file
 ```
 
 **Tools and Libraries**
@@ -137,8 +142,21 @@ Container lifecycle management and startup security are orchestrated through the
 
 ### Authentication flow
 1. `/login` posts password
-2. API route compares against stored 20-char secret using constant-time comparison
-3. Proxy (`proxy.ts`) checks the session on every request: unauthenticated requests to `/` and `/customize/*` are redirected to `/login`; unauthenticated requests to protected API routes return HTTP 401 with `{ error: 'not authenticated' }` (`/api/auth/login` and `/api/auth/logout` remain public)
+2. IP ban check: if client IP is recorded in `banned_ip.log`, the request is immediately rejected with HTTP 403 Forbidden (`{ error: 'IP is locked out due to too many failed login attempts', authenticated: false }`).
+3. API route compares against stored 20-char secret using constant-time comparison.
+4. Failed attempts handling: consecutive failed login attempts are tracked per IP. On the 5th failed attempt, the IP is permanently locked out and written to `banned_ip.log`. All subsequent requests from this IP return HTTP 403 Forbidden.
+5. Successful login clears the failed attempt counter for that IP.
+6. Proxy (`proxy.ts`) checks the session on every request:
+   - If client IP is listed in `banned_ip.log`, requests are rejected with HTTP 403 Forbidden (`{ error: 'IP is locked out' }`).
+   - Unauthenticated requests to `/` and `/customize/*` are redirected to `/login`.
+   - Unauthenticated requests to protected API routes return HTTP 401 with `{ error: 'not authenticated' }` (`/api/auth/login` and `/api/auth/logout` remain accessible unless IP is banned).
+
+#### IP Lockout Mechanism & `banned_ip.log`
+To mitigate brute-force password guessing, an automated lockout mechanism is enforced:
+- **Lockout Threshold**: 5 failed login attempts per client IP.
+- **Persistence (`banned_ip.log`)**: On the 5th failed login attempt, the client IP address is appended to `banned_ip.log` in the application root (newline-delimited).
+- **HTTP 403 Rejection**: Any request from an IP found in `banned_ip.log` to `/api/auth/login` or via the middleware proxy `proxy.ts` is rejected with HTTP 403 Forbidden.
+- **Counter Reset**: When an IP successfully logs in, its consecutive failed attempt counter is reset to 0.
 
 Session TTL: 72 hours from login, checked server-side, but only for the lifetime of the running process. If you stop the container or the app, the secret is invalidated and everyone is logged out.
 
@@ -176,7 +194,7 @@ Backup of `db.json` is out of scope given the short lifespan of the app.
 
 | Method | Endpoint | Access | Purpose |
 |---|---|---|---|
-| `POST` | `/api/auth/login` | Public | Authenticate with 20-char secret & set session cookie |
+| `POST` | `/api/auth/login` | Public | Authenticate with 20-char secret & set session cookie (HTTP 403 if IP locked out after 5 failures) |
 | `POST` | `/api/auth/logout` | Public | Clear session cookie |
 | `GET` | `/api/config` | Authenticated | Fetch anniversary date & story settings |
 | `PUT` | `/api/config` | Authenticated | Update anniversary date |

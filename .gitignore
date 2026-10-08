@@ -1,3 +1,6 @@
 db.json
 ever-since/media/*
 *.logs
+banned_ip.log
+docs/superpowers
+docs/deployment-steps.md

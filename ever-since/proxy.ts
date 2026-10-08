@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/auth/session';
+import { isIpBanned } from '@/lib/auth/lockout';
 import { logger, getClientIp } from '@/lib/logger';
 
 /**
@@ -11,6 +12,19 @@ import { logger, getClientIp } from '@/lib/logger';
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const ip = getClientIp(request);
+
+  if (await isIpBanned(ip)) {
+    logger.warn(
+      {
+        event: 'banned_ip_rejected',
+        method: request.method,
+        pathname,
+        ip,
+      },
+      `Rejected request from banned IP ${ip}`
+    );
+    return NextResponse.json({ error: 'IP is locked out' }, { status: 403 });
+  }
 
   // Every API call is logged, including IP address of the user
   if (pathname.startsWith('/api/')) {
