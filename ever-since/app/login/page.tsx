@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import LoginForm from './login-form';
 import { isSessionAuthenticated } from '@/lib/auth/session';
 import { readDb } from '@/lib/storage/db';
@@ -5,7 +6,16 @@ import { reconcileMediaLibrary } from '@/lib/media/sync';
 
 export const dynamic = 'force-dynamic';
 
-export default async function LoginPage() {
+interface LoginPageProps {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const resolvedParams = searchParams ? await searchParams : {};
+  if (resolvedParams && typeof resolvedParams.password === 'string') {
+    redirect('/login');
+  }
+
   await reconcileMediaLibrary().catch(() => {});
   const authenticated = await isSessionAuthenticated();
   const db = await readDb().catch(() => null);

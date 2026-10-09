@@ -26,8 +26,27 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const body = (await request.json().catch(() => ({}))) as { password?: unknown };
-  const password = typeof body.password === 'string' ? body.password : '';
+  const contentType = request.headers.get('content-type') || '';
+  const isFormPost =
+    (contentType.includes('application/x-www-form-urlencoded') ||
+      contentType.includes('multipart/form-data')) &&
+    !request.headers.get('accept')?.includes('application/json');
+
+  let password = '';
+  if (
+    contentType.includes('application/x-www-form-urlencoded') ||
+    contentType.includes('multipart/form-data')
+  ) {
+    const formData = await request.formData().catch(() => null);
+    if (formData) {
+      const val = formData.get('password');
+      if (typeof val === 'string') password = val;
+    }
+  } else {
+    const body = (await request.json().catch(() => ({}))) as { password?: unknown };
+    password = typeof body.password === 'string' ? body.password : '';
+  }
+
   const isValid = await verifyPassword(password);
 
   // Every login attempt is logged
@@ -43,10 +62,16 @@ export async function POST(request: NextRequest) {
   if (!isValid) {
     const { banned } = await recordFailedAttempt(ip);
     if (banned) {
+      if (isFormPost) {
+        return NextResponse.redirect(new URL('/login?error=locked', request.url), 303);
+      }
       return NextResponse.json(
         { error: 'IP is locked out due to too many failed login attempts', authenticated: false },
         { status: 403 }
       );
+    }
+    if (isFormPost) {
+      return NextResponse.redirect(new URL('/login?error=1', request.url), 303);
     }
     return NextResponse.json({ authenticated: false }, { status: 401 });
   }
@@ -64,6 +89,10 @@ export async function POST(request: NextRequest) {
     if (process.env.NODE_ENV !== 'test') {
       throw err;
     }
+  }
+
+  if (isFormPost) {
+    return NextResponse.redirect(new URL('/login', request.url), 303);
   }
 
   return NextResponse.json({ authenticated: true }, { status: 200 });

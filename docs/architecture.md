@@ -152,12 +152,13 @@ Container lifecycle management and startup security are orchestrated through the
 3. The 20-char secret is saved in `data/db.json`. Yes, it is cleared on restart/shutdown but this is expected behavior.
 
 ### Authentication flow
-1. `/login` posts password
-2. IP ban check: if client IP is recorded in `banned_ip.log`, the request is immediately rejected with HTTP 403 Forbidden (`{ error: 'IP is locked out due to too many failed login attempts', authenticated: false }`).
-3. API route compares against stored 20-char secret using constant-time comparison.
-4. Failed attempts handling: consecutive failed login attempts are tracked per IP. On the 5th failed attempt, the IP is permanently locked out and written to `banned_ip.log`. All subsequent requests from this IP return HTTP 403 Forbidden.
-5. Successful login clears the failed attempt counter for that IP.
-6. Proxy (`proxy.ts`) checks the session on every request:
+1. **Security Requirement (No Cleartext Password in URL)**: The password must never appear in cleartext in the browser URL bar, query parameters, browser history, or server access logs (e.g. `GET /login?password=...` is strictly forbidden). Authentication must exclusively use the correct API (`POST /api/auth/login`) with the password contained strictly within the HTTP request body (JSON or Form Data). If any accidental or legacy request arrives with password query parameters, the server and client must immediately scrub the parameters and redirect to `/login`.
+2. `/login` posts the password to `POST /api/auth/login`.
+3. IP ban check: if client IP is recorded in `banned_ip.log`, the request is immediately rejected with HTTP 403 Forbidden (`{ error: 'IP is locked out due to too many failed login attempts', authenticated: false }`).
+4. API route compares against stored 20-char secret using constant-time comparison.
+5. Failed attempts handling: consecutive failed login attempts are tracked per IP. On the 5th failed attempt, the IP is permanently locked out and written to `banned_ip.log`. All subsequent requests from this IP return HTTP 403 Forbidden.
+6. Successful login clears the failed attempt counter for that IP.
+7. Proxy (`proxy.ts`) checks the session on every request:
    - If client IP is listed in `banned_ip.log`, requests are rejected with HTTP 403 Forbidden (`{ error: 'IP is locked out' }`).
    - Unauthenticated requests to `/` and `/customize/*` are redirected to `/login`.
    - Unauthenticated requests to protected API routes return HTTP 401 with `{ error: 'not authenticated' }` (`/api/auth/login` and `/api/auth/logout` remain accessible unless IP is banned).

@@ -215,11 +215,11 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
         </nav>
 
         {/* Card container with faux stack cue */}
-        <div className="relative w-[clamp(260px,calc(100svh-17rem),420px)] max-w-full">
+        <div className="relative w-[min(calc(100vw-3.75rem),calc(100svh-18rem),340px)] sm:w-[clamp(280px,calc(100svh-17rem),420px)] max-w-full -translate-x-1 sm:translate-x-0">
           {showStackPeek && (
             <div
               aria-hidden="true"
-              className="absolute inset-0 translate-x-3.5 translate-y-2 rounded-[36px] md:rounded-[40px] border border-[#ECDCE3] bg-[#FCF8FA] shadow-[0_10px_35px_rgba(255,150,170,0.18)] -z-10"
+              className="absolute inset-0 translate-x-2 sm:translate-x-3.5 translate-y-1.5 sm:translate-y-2 rounded-[32px] sm:rounded-[36px] md:rounded-[40px] border border-[#ECDCE3] bg-[#FCF8FA] shadow-[0_8px_25px_rgba(255,150,170,0.15)] sm:shadow-[0_10px_35px_rgba(255,150,170,0.18)] -z-10"
             />
           )}
 
@@ -254,10 +254,10 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
                 stiffness: 300,
                 damping: 30,
               }}
-              className="w-full rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_12px_40px_rgba(255,150,170,0.22)] overflow-hidden flex flex-col p-4 sm:p-5 cursor-grab active:cursor-grabbing select-none"
+              className="w-full rounded-[32px] sm:rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_10px_30px_rgba(255,150,170,0.18)] sm:shadow-[0_12px_40px_rgba(255,150,170,0.22)] overflow-hidden flex flex-col p-4 sm:p-5 cursor-grab active:cursor-grabbing select-none"
             >
               {/* Media figure */}
-              <figure className="relative w-full aspect-square rounded-[26px] md:rounded-[28px] overflow-hidden bg-[#FAF7F8] flex items-center justify-center shrink-0 select-none [-webkit-touch-callout:none]">
+              <figure className="relative w-full aspect-square rounded-[22px] sm:rounded-[26px] md:rounded-[28px] overflow-hidden bg-[#FAF7F8] flex items-center justify-center shrink-0 select-none [-webkit-touch-callout:none]">
                 {activeMedia ? (
                   <>
                     {!isCurrentMediaLoaded && (
@@ -352,12 +352,12 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
               {(activeMemory?.heading || activeMemory?.text) && (
                 <div className="flex flex-col items-center text-center justify-center pt-3 sm:pt-4 pb-1 px-2 w-full max-h-[22svh] overflow-y-auto overscroll-contain">
                   {activeMemory?.heading && (
-                    <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground leading-snug mb-1">
+                    <h2 className="text-xl sm:text-2xl font-bold text-foreground leading-snug mb-1">
                       {activeMemory.heading}
                     </h2>
                   )}
                   {activeMemory?.text && (
-                    <p className="text-xs sm:text-sm md:text-base text-foreground/80 leading-relaxed max-w-sm">
+                    <p className="text-sm sm:text-base text-foreground/85 leading-relaxed max-w-sm">
                       {activeMemory.text}
                     </p>
                   )}

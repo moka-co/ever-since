@@ -70,9 +70,21 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
     return () => clearInterval(timer);
   }, [isLockedOut, remainingCooldownSeconds]);
 
+  // Scrub any cleartext password from URL query string immediately
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search) {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('password')) {
+        url.searchParams.delete('password');
+        window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+      }
+    }
+  }, []);
+
   // Password submission (View 1 -> View 2)
   async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    event.stopPropagation();
     setIsSubmitting(true);
     setHasError(false);
 
@@ -81,6 +93,7 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({ password }),
       });
@@ -229,6 +242,8 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
         </h1>
 
         <form
+          method="POST"
+          action="/api/auth/login"
           onSubmit={handlePasswordSubmit}
           className="w-full flex flex-col items-center"
         >
@@ -283,7 +298,7 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
   /* VIEW 2: Date Entry Screen (Shown only after authenticated)               */
   /* -------------------------------------------------------------------------- */
   return (
-    <div className="flex flex-col md:flex-row items-center justify-center gap-8 w-full max-w-4xl">
+    <div className="flex flex-col md:flex-row items-center justify-center gap-3.5 sm:gap-4 md:gap-8 w-full max-w-4xl">
       {/* Left Column: Date Input Card or Cooldown Lockout Card */}
       {isLockedOut ? (
         <section
@@ -320,11 +335,11 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
       ) : (
         <section
           aria-labelledby="story-initiation-heading"
-          className="w-80 sm:w-96 max-w-full rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_12px_40px_rgba(255,150,170,0.22)] p-7 sm:p-8 flex flex-col items-center text-center select-none"
+          className="w-80 sm:w-96 max-w-full rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_12px_40px_rgba(255,150,170,0.22)] py-6 px-7 sm:p-8 flex flex-col items-center text-center select-none"
         >
           <h2
             id="story-initiation-heading"
-            className="text-2xl font-bold text-foreground text-center w-full mb-6"
+            className="text-2xl font-bold text-foreground text-center w-full mb-5 sm:mb-6"
           >
             Ever Since...
           </h2>
@@ -414,9 +429,6 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
             >
               {isVerifyingDate ? 'Checking...' : 'Start Story'}
             </button>
-
-            {/* Hint: our date */}
-            <p className="mt-3 text-xs text-muted">Hint: our date</p>
           </form>
         </section>
       )}
