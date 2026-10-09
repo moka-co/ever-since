@@ -4,7 +4,7 @@ export default function Loading() {
   return (
     <main
       aria-label="Loading memory timeline"
-      className="min-h-screen relative flex flex-col items-center justify-center p-6 md:p-12 select-none overflow-x-hidden"
+      className="min-h-dvh relative flex flex-col items-center justify-center px-4 py-6 sm:p-6 md:p-12 select-none overflow-x-hidden"
     >
       <section
         aria-label="Loading memory timeline card"
@@ -22,7 +22,7 @@ export default function Loading() {
         </div>
 
         {/* Card container with stack cue */}
-        <div className="relative w-80 sm:w-96 md:w-[420px] max-w-full">
+        <div className="relative w-[clamp(260px,calc(100svh-17rem),420px)] max-w-full">
           {/* Stack peek cue */}
           <div
             aria-hidden="true"

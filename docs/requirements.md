@@ -17,7 +17,7 @@ The base user can:
 - In case of incorrect password attempts, receive standard error feedback
 - Reload the page or close the page and still be logged in for 72 hours (from the login).
 - Insert the date to start the main flow (in case of incorrect date entries, receive escalating playful feedback across 3 attempts, followed by a 30-second cooldown lockout screen with live countdown timer)
-- Experience the main flow, including interacting with items and view every memory.
+- Experience the main flow, including interacting with items and viewing every memory with automatic image preloading (preventing blank flashes) and video audio controls (volume up/down and unmute).
 - The user can either swipe (mobile) left/right or click on "<" or ">" arrow to go to prev/next memory
 - At any point in the main flow, the base user can "rewind" (start from the beginning) and also go back
 
@@ -26,7 +26,10 @@ The base user can:
 - Access `/customize` (desktop-only)
 - Add, remove, and view memories (up to 50 memories cap)
 - Add, remove and view photos or videos (up to 50 media files cap)
-- Customize memories
+- Media Library organized into dedicated Photos and Videos sections, each displaying total counts, empty states, and delete actions.
+- Autoplaying, looping video previews (accelerated 1.5x playback) in the Media Library and pickers.
+- Visual indicator in Media Library marking uploaded photos/media currently unused in any memory or seal.
+- Customize memories, including interactive 2D photo framing (`mediaPositionX` and `mediaPositionY`), photo zoom-in/out (`mediaScale`, 1.0x–3.0x), and video volume adjustment in card previews.
 - Reordering memories with drag-to-reorder
 
 ### What is a memory
@@ -35,6 +38,7 @@ A memory may contain:
 - An Header with larger font
 - normal text with normal font
 - an image or a video (mutually exclusive)
+- 2D framing coordinates (`mediaPositionX` 0–100%, `mediaPositionY` 0–100%, default 50%) and zoom scale (`mediaScale` 1.0–3.0, default 1) for fitting photos cleanly inside cards
 - buttons that don't really do anything complex or simple, fun interactions. 
 
 Note: buttons have a fixed vocabulary of behaviours, code then yourself and add them in an appropriate file. 
@@ -47,7 +51,7 @@ Buttons idea to implement:
 ## Tech Stack
 - Front-end: TypeScript (strict mode), Tailwind CSS
 - Back-end: Next.js
-- Data storage: flat JSON file with Zod validation on all reads/writes for type safety. Since there is a single authoring user (admin), the probability of write race conditions is minimal and practically negligible for this app. Timeline memories are capped at a maximum of 50 items. Media binaries are stored in the local filesystem (capped at a maximum quota of 50 media files); the `GET /api/media/[id]` endpoint strictly serves only files registered in the database, preventing unauthorized file access or path traversal. Sharp handles image processing.
+- Data storage: flat JSON file with Zod validation on all reads/writes for type safety. Since there is a single authoring user (admin), the probability of write race conditions is minimal and practically negligible for this app. Timeline memories are capped at a maximum of 50 items. Media binaries are stored in the local filesystem (capped at a maximum quota of 50 media files). It is required that you can also upload files directly through the file system to the `media/` folder and also to the database, and use these if they are already available; a reconciliation process synchronizes the filesystem and database on login and on customize without unnecessary file renaming. The `GET /api/media/[id]` endpoint strictly serves only registered media files, preventing unauthorized file access or path traversal. Sharp handles image processing.
 - Infra: Docker
 - Authentication: App-generated pseudorandom string, 20 characters long, as the single shared secret. On correct entry, a cookie is set that keeps the session persistently logged in (no repeated re-entry). Cookie managed with `iron-session` session library.
 - App structure: `/customize` for admin/editing route (desktop-only) and `/` for the main flow for the end user (partner)

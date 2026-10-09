@@ -68,6 +68,7 @@ ever-since/
     │   │   └── session.ts
     │   ├── media/
     │   │   ├── processor.ts
+    │   │   ├── sync.ts
     │   │   └── validation.ts
     │   └── storage/
     │       ├── db.ts
@@ -107,10 +108,20 @@ ever-since/
 
 **UI Components & Architecture**:
 - **Shared Alert Component (`app/customize/alert.tsx`)**: Reusable client component providing consistent success and error notifications across `/customize` modules (`ConfigForm`, `MediaManager`, `MemoriesManager`). Consolidates alert styling, accessibility roles (`role="alert"`, `role="status"`), and dismiss handling into a single component.
+- **Media Manager (`app/customize/media-manager.tsx`)**: Partitioned into dedicated Photos and Videos sections with responsive grids, upload quota counters, and deletion overlays. Videos render live with muted 1.5x autoplay looping previews (`pointer-events-none`). Unused media badges highlight unassigned assets.
+- **Memories Manager (`app/customize/memories-manager.tsx`)**: Form for authoring and editing memories, featuring an enlarged card preview matching the main flow aspect ratio. Includes interactive click-and-drag 2D photo framing (`mediaPositionX`, `mediaPositionY`, 0%–100%), mouse wheel zoom and toolbar controls (`mediaScale`, 1.0x–3.0x), and preview audio controls for videos (mute/unmute toggle, volume range slider, -10%/+10% steppers). Synchronizes framing and zoom scale identically across editor preview, list thumbnails, and timeline cards.
+- **Main Timeline Flow & Preloading Pipeline (`app/timeline-client.tsx`)**:
+  - **Lazy Media Preloading Pipeline**: Background preloading executes upon timeline mount for all timeline memory images using `new Image()` prefetching, ensuring instant transitions without blank card flashes.
+  - **Hydration Race Condition Fix**: Fixes the issue where browser-cached images or SSR DOM hydration caused the first card image to remain invisible/empty (skeleton overlay stuck). React 19 synthetic `onLoad` handlers do not fire if `img.complete` is already true prior to event attachment. Uses an image ref callback (`if (el.complete && el.naturalWidth > 0) markLoaded(index)`) combined with a `loadedIndices` Set state to guarantee immediate visibility on initial load.
+  - **2D Pan & Zoom Rendering**: Renders photo elements with `objectPosition: ${mediaPositionX}% ${mediaPositionY}%` and `transform: scale(${mediaScale})`.
+  - **Video Audio Controls**: Includes dedicated volume adjustment buttons (`−`, `+`, mute/unmute toggle) appearing dynamically when active memory is a video.
 
 **Storage Layer**:
 - `lib/storage/`
-    - `schema.ts` -> contains the Zod schema for the database (`db.json`)
+    - `schema.ts` -> contains the Zod schema for the database (`db.json`):
+      - `memorySchema`: `{ id: UUID, heading: string(<=100) | null, text: string(<=100) | null, mediaId: string | null, mediaPositionX?: number (0-100, default 50), mediaPositionY?: number (0-100, default 50), mediaScale?: number (1-3, default 1) }`
+      - `mediaRecordSchema`: `{ id: string, filename: string, width?: number, height?: number }`
+      - `dbSchema`: `{ secret, config: { anniversaryDate, sealMediaId }, memories: max(50), media: max(50) }`
     - `db.ts` -> exports `readDb()` and `updateDb()`. Overridable via `DB_PATH` in tests. Assuming single user single writer.
 
 **Logging**:
@@ -165,17 +176,11 @@ The 20-char secret lives in `data/db.json`. The `iron-session` encryption key is
 Since auth is cookie-based, a requirement is `SameSite` (Lax) for the session cookie.
 
 ### Media Pipeline
-1. Admin user uploads via `/customize` a multipart file to `/api/media`
-2. Security checks: file type (whitelisted extension), size. Resize to a max dimension (2048px), strip EXIF
-3. write to `media/` on local disk, record metadata (id, filename, dimensions) in `db.json` - rename using id, id choice is simple +1
-4. Serve via `/api/media/[id]`
-
-Hard constraints: 
-- 50 media files, no new upload allowed without deleting some files first.
-- 50 memories, no new memory creation allowed without deleting existing ones first.
-- Max upload size 10MB for photos, 50MB for videos
-
-Media upload and write failures silently fail for the base user (partner) and are logged server-side. For the admin user in `/customize`, the API returns an error response with details to power an inline error and retry affordance.
+1. Upload & filesystem storage: Admin uploads via `/customize` to `/api/media`, or places files directly into the `media/` folder on the filesystem.
+2. Security & processing checks: file type (whitelisted extension), size. Photos are resized to a max dimension (2048px) and stripped of EXIF metadata via Sharp.
+3. Metadata & naming: Original filenames are preserved without unnecessary renaming (e.g. keeping `03a27da4-bbe2-4790-b32b-e70f601032e6.jpg` or original names). Each media item has a unique ID following UUID structure.
+4. Filesystem Reconciliation: On login and on customize, a reconciliation process scans the `media/` directory and synchronizes it with `db.json`, automatically discovering and registering files placed directly on disk (measuring image dimensions via Sharp) and pruning stale records, respecting the 50-file quota.
+5. Serve via `/api/media/[id]` (serves registered media files directly from disk by ID or filename).
 
 ### Buttons - fixed registry of buttons
 A fixed component registry under `lib/buttons/`. The key file is `registry.tsx` which map from e.g. ButtonSchema type to a React Component.
@@ -199,8 +204,8 @@ Backup of `db.json` is out of scope given the short lifespan of the app.
 | `GET` | `/api/config` | Authenticated | Fetch anniversary date & story settings |
 | `PUT` | `/api/config` | Authenticated | Update anniversary date |
 | `GET` | `/api/memories` | Authenticated | Fetch ordered memories for timeline |
-| `POST` | `/api/memories` | Authenticated | Add a new memory item (enforcing 50-memory quota) |
-| `PUT` | `/api/memories/[id]` | Authenticated | Update an existing memory |
+| `POST` | `/api/memories` | Authenticated | Add a new memory item (enforces 50-memory quota; supports `mediaPositionX?: number`, `mediaPositionY?: number`, `mediaScale?: number`) |
+| `PUT` | `/api/memories/[id]` | Authenticated | Update an existing memory (supports updating `mediaPositionX?: number`, `mediaPositionY?: number`, `mediaScale?: number`, clamped to schema constraints) |
 | `DELETE` | `/api/memories/[id]` | Authenticated | Delete a memory item |
 | `PUT` | `/api/memories/reorder` | Authenticated | Reorder memories after drag & drop |
 | `GET` | `/api/media` | Authenticated | List media & inspect 50-file quota |

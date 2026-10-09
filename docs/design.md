@@ -69,7 +69,7 @@
 ### Login Screen (Emotional Framing & Failure States)
 - **Concept**: Sentimental framing that turns authentication into part of the narrative (e.g., "Ever since [date]...").
 - **Card Visuals & Input**: Enclosed in a centered elevated white card with generous rounding (`rounded-[36px]` / `rounded-[40px]`), warm outline (`border-[#F1E8EC]`), and soft rose drop shadow (`shadow-[0_12px_40px_rgba(255,150,170,0.22)]`), cleanly elevated above the mesh canvas. Features a minimalist rounded input (`rounded-2xl border-[#F1E8EC] bg-[#FAF7F8]`) and a signature rose-gradient primary action button (`from-[#F472B6] to-[#FB7185]`) matching the rest of the application.
-- **Input Guidance**: Includes a subtle, romantic placeholder hint (e.g., `"Our date..."` or `"ask your nerd"`) to gently guide the user without breaking immersion.
+- **Input Guidance**: Includes a subtle, romantic placeholder hint (e.g., `"Our date..."`) to gently guide the user without breaking immersion.
 - **Failure States & Escalating Feedback (3 Attempts)**:
   - NOTE important: this is on the second login flow when the user has to insert the date. THIS IS NOT ON THE SECRET.
   - Attempt 1: Gentle input shake with playful pleading copy: *"I'm crying, 3 tries left"*.
@@ -125,17 +125,38 @@
 - **Platform Constraint**: **Explicitly Desktop-Only** (viewport width >= 1024px). Accessing `/customize` on mobile displays a clear, polite notice requesting the user open the dashboard on a computer.
 - **Visuals & Layout**:
   - **Structure**: Single elevated card container with generous rounding (`rounded-[36px]` / `rounded-[40px]`) and soft rose elevation shadow.
+  - **Logical Grouping**: To minimize vertical scrolling and cognitive load, related settings should be visually grouped into logical sections (e.g., General Settings, Media Library, Memories Timeline), using tabbed interfaces or accordions when possible.
   - **Evident Separation Lines**: Distinct, evident dividing lines in soft dusty mauve (`#C4A2B2`) cleanly delineate each section and sub-column, replacing faint, low-contrast borders.
   - **Story Initiation Sub-Section (Two Columns)**: A dedicated two-column grid at the top uniting the kickoff settings:
     - **Column 1 (Anniversary Date)**: Date picker input and primary save button for the recurrence date.
     - **Column 2 (First Photo)**: Media dropdown selector and live thumbnail preview for the photo or seal meme shown on the login date-entry screen.
-- **Media & Memories Management & Quota Feedback**:
-  - Direct multipart file upload zone with clear quota badges (e.g., "12 / 50 media files used") and file size feedback.
-  - Memories timeline authoring with a distinct 50-memory quota badge (e.g., "8 / 50 memories used"), disabling new additions and alerting the admin when the limit is reached.
-  - **Inline Error & Retry Feedback**: If a media upload or database write fails, an inline error notification is displayed directly on the affected item or upload dropzone (e.g., *"Upload failed: File exceeds limit or network dropped • [Retry]"*). This ensures the admin can catch and fix issues before sharing the site, while end-user flows remain quiet.
-- **Reordering**:
-  - Drag-and-drop memory reordering designed for mouse interactions.
-  - **Keyboard Reordering Fallback**: Up and Down arrow buttons placed adjacent to the drag handles on each row, allowing keyboard-only users to reorder items using Tab and Enter/Space.
+  - **Save Action Feedback**: Form submissions across the dashboard must provide clear, immediate inline visual feedback (e.g., a "Save" button temporarily shifting to a green "✓ Saved!" state) to reassure non-technical users without requiring intrusive modals.
+- **Media Library Optimization**:
+  - **Partitioned Sections (Photos vs. Videos)**: Media assets are cleanly segregated into dedicated **Photos** and **Videos** sections, each displaying its own badge count (e.g. `Photos (4)`, `Videos (1)`), empty states, and responsive thumbnail grids.
+  - **Autoplaying Looping Video Previews (1.5x Speed)**: Videos in the media library and pickers render live with `autoPlay`, `loop`, `muted`, `playsInline`, and accelerated `1.5x` playback rate (`playbackRate = 1.5`) for fast previewing. The `<video>` element utilizes `pointer-events-none` so hovering triggers the delete action overlay effortlessly.
+  - **Unused Media Visual Badge**: Items not currently assigned to any memory or seal feature a prominent amber badge (`Unused`), giving admins immediate visibility into unreferenced assets.
+  - **Grid View over List View**: Uploaded media are displayed in a dense grid of square thumbnails (`aspect-square`) to significantly reduce vertical scrolling, elegantly accommodating up to 50 items.
+  - **Minimalist Clean UI**: Technical metadata like full filenames and pixel dimensions are intentionally hidden. 
+  - **Refined Destructive Actions**: Harsh, text-heavy red "Delete" buttons are replaced by subtle trash can icons presented via a dark overlay on hover, preserving visual focus on the media.
+  - **Custom Upload Zone**: The native browser file input is replaced by cohesive, custom-styled upload buttons with clear format and size allowances.
+- **Memories Timeline & Workflow**:
+  - **Enlarged Memory Preview & Interactive Photo Framing**:
+    - When media is selected in the Add/Edit Memory form, an enlarged card preview (`aspect-square` matching the main flow cards) renders prominently.
+    - **2D Click & Drag Panning**: For photos, clicking or dragging horizontally and vertically across the preview adjusts focal positioning (`mediaPositionX` and `mediaPositionY`, 0%–100%, default 50%).
+    - **Photo Zoom Controls (Wheel & Toolbar)**: Admins can zoom photos from `1.0x` to `3.0x` using mouse wheel scrolling directly on the preview or using the inline zoom toolbar (`−`, `${scale}x`, `+`, `Reset`).
+    - **Clean Minimalist Framing Cue**: Redundant sliders, preset buttons ("Left", "Center", "Right"), and percentage pills are removed, leaving a single clean overlay badge (`↔ Click or drag to move`).
+    - **Video Volume Controls in Preview**: For videos, the enlarged preview provides dedicated audio controls (Mute/Unmute toggle, -10%/+10% step buttons, volume slider, and live percentage readout) with live audio playback.
+    - **Live Crop & Zoom Synchronization**: Normalized positioning and scale are mirrored identically across the authoring preview, memories list thumbnails, and main flow timeline cards.
+  - **Visual Media Picker (no filename dropdowns)**: Media is never chosen from a native `<select>` of filenames. Uploaded files usually have opaque UUID names, so a text list is unusable for non-tech-savvy users. Instead, the form shows the current choice as a large thumbnail tile ("+" when empty); clicking it opens a modal grid of square thumbnails with a pink ring + ✓ badge on the selected item, a "No photo" tile and an "Upload" tile. Picking a thumbnail selects it and closes the modal. Escape or clicking the backdrop dismisses it. Rationale: people recognise photos, not filenames.
+  - **Inline Media Uploads**: When authoring a new memory, users can upload new media directly from within the "Add Memory" form (both from the form and from the picker's Upload tile). A freshly uploaded file is auto-selected, removing the friction of navigating back to the Media Library first.
+  - **Distinct Edit Mode**: Adding and editing share one form, but editing must be unmistakable: the form container switches to a soft rose tint with a border, the title becomes "Editing Memory" with a pulsing dot, and a "Cancel Edit" action is always visible. Rationale: identical-looking states caused users to overwrite or duplicate memories by mistake.
+  - **Grid Timeline**: Memories are shown as cards in a 2-column grid (1 column on mobile), each with a square media thumbnail, header and a 2-line text excerpt, to keep vertical scrolling low as the timeline grows to 50 items.
+  - **Reordering**:
+    - Drag-and-drop memory reordering designed for mouse interactions.
+    - **Keyboard Reordering Fallback**: Backward/Forward (← →) arrow buttons placed next to the drag handle on each card, allowing keyboard-only users to reorder items using Tab and Enter/Space.
+  - **Quota Badges & Feedback**:
+    - Distinct quota badges (e.g., "12 / 50 media files used", "8 / 50 memories used") provide real-time limits awareness.
+    - **Inline Error & Retry Feedback**: If a media upload or database write fails, an inline error notification is displayed directly on the affected item or upload dropzone.
 - **Button Authoring**:
   - Admins select fun buttons from a dropdown populated by the fixed component registry, rendering a straightforward form to configure button options.
 - **Empty State (Admin Dashboard)**:

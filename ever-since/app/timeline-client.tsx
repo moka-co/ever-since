@@ -1,7 +1,6 @@
 "use client";
-
-import { useState, useRef } from "react";
-import { motion, PanInfo, AnimatePresence } from "framer-motion";
+import { useState, useRef, useEffect } from "react";
+import { motion, PanInfo, AnimatePresence, MotionConfig, useReducedMotion } from "framer-motion";
 import type { MemoryRecord, MediaRecord } from "@/lib/storage/schema";
 import { isVideo } from "@/lib/media/validation";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,11 +12,59 @@ interface TimelineClientProps {
 
 export default function TimelineClient({ memories, media }: TimelineClientProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loadedMediaIndex, setLoadedMediaIndex] = useState<number | null>(null);
+  const [direction, setDirection] = useState<1 | -1>(1);
+  const [loadedIndices, setLoadedIndices] = useState<Set<number>>(new Set());
   const [isRewinding, setIsRewinding] = useState(false);
+  const [showRewindHint, setShowRewindHint] = useState(false);
   const rewindTimeout = useRef<NodeJS.Timeout | null>(null);
+  const rewindHintTimeout = useRef<NodeJS.Timeout | null>(null);
+  const pointerDownTime = useRef<number>(0);
+  const shouldReduceMotion = useReducedMotion();
 
-  const isCurrentMediaLoaded = loadedMediaIndex === currentIndex;
+  const isCurrentMediaLoaded = loadedIndices.has(currentIndex);
+
+  const markLoaded = (idx: number) => {
+    setLoadedIndices((prev) => {
+      if (prev.has(idx)) return prev;
+      const next = new Set(prev);
+      next.add(idx);
+      return next;
+    });
+  };
+
+  // Windowed lazy-preloading pipeline for timeline images (current +- 2)
+  useEffect(() => {
+    if (typeof window === "undefined" || memories.length === 0) return;
+
+    const windowStart = Math.max(0, currentIndex - 2);
+    const windowEnd = Math.min(memories.length - 1, currentIndex + 2);
+
+    for (let idx = windowStart; idx <= windowEnd; idx++) {
+      const mem = memories[idx];
+      if (!mem?.mediaId) continue;
+      const m = media.find((item) => item.id === mem.mediaId);
+      if (m && !isVideo(m.filename)) {
+        const img = new Image();
+        img.src = `/api/media/${m.filename}`;
+        if (idx === currentIndex) {
+          if (img.complete && img.naturalWidth > 0) {
+            // Schedule via microtask or timer to avoid synchronous cascading render warning
+            queueMicrotask(() => markLoaded(idx));
+          } else {
+            img.onload = () => markLoaded(idx);
+          }
+        }
+      }
+    }
+  }, [currentIndex, memories, media]);
+
+  // Safety fallback: if media fails to report loaded within 2.5s, clear skeleton
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      markLoaded(currentIndex);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [currentIndex]);
 
   // Dots Logic (Instagram style sliding window)
   const maxDots = 5;
@@ -26,11 +73,17 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
   const visibleDots = memories.slice(startDotIndex, endDotIndex).map((_, idx) => startDotIndex + idx);
 
   const handleNext = () => {
-    if (currentIndex < memories.length - 1) setCurrentIndex((prev) => prev + 1);
+    if (currentIndex < memories.length - 1) {
+      setDirection(1);
+      setCurrentIndex((prev) => prev + 1);
+    }
   };
 
   const handlePrev = () => {
-    if (currentIndex > 0) setCurrentIndex((prev) => prev - 1);
+    if (currentIndex > 0) {
+      setDirection(-1);
+      setCurrentIndex((prev) => prev - 1);
+    }
   };
 
   const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
@@ -45,10 +98,17 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
 
   const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
+    pointerDownTime.current = Date.now();
     setIsRewinding(true);
     rewindTimeout.current = setTimeout(() => {
+      setDirection(-1);
       setCurrentIndex(0);
       setIsRewinding(false);
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        try {
+          navigator.vibrate(30);
+        } catch {}
+      }
     }, 1500);
   };
 
@@ -58,6 +118,16 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
     } catch {}
     if (rewindTimeout.current) clearTimeout(rewindTimeout.current);
     setIsRewinding(false);
+
+    // If pointer was held for less than 400ms, user tapped instead of holding -> display hint
+    const elapsed = Date.now() - pointerDownTime.current;
+    if (elapsed > 0 && elapsed < 400 && currentIndex > 0) {
+      setShowRewindHint(true);
+      if (rewindHintTimeout.current) clearTimeout(rewindHintTimeout.current);
+      rewindHintTimeout.current = setTimeout(() => {
+        setShowRewindHint(false);
+      }, 1800);
+    }
   };
 
   const activeMemory = memories[currentIndex];
@@ -75,111 +145,145 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
   }
 
   return (
-    <section aria-label="Memory timeline" className="flex flex-col items-center justify-center w-full max-w-lg z-0">
-      {/* Memory progress dots */}
-      <nav aria-label="Memory progress" className="mb-4 md:mb-5">
-        <ol className="flex items-center justify-center gap-2 overflow-hidden h-4">
-          <AnimatePresence mode="popLayout">
-            {visibleDots.map((dotIdx) => {
-              const isActive = dotIdx === currentIndex;
-              return (
-                <motion.li
-                  key={dotIdx}
-                  layout
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{
-                    width: isActive ? 24 : 8,
-                    height: 8,
-                    opacity: 1,
-                    backgroundColor: isActive ? "#D4537E" : "#F1D6DE",
-                  }}
-                  exit={{ scale: 0.8, opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                  aria-current={isActive ? "step" : undefined}
-                  className="rounded-full"
-                />
-              );
-            })}
-          </AnimatePresence>
-        </ol>
-      </nav>
+    <MotionConfig reducedMotion="user">
+      <section aria-label="Memory timeline" className="flex flex-col items-center justify-center w-full max-w-lg z-0">
+        {/* Memory progress dots */}
+        <nav aria-label="Memory progress" className="mb-4 md:mb-5">
+          <ol className="flex items-center justify-center gap-2 overflow-hidden h-4">
+            <AnimatePresence mode="popLayout">
+              {visibleDots.map((dotIdx) => {
+                const isActive = dotIdx === currentIndex;
+                return (
+                  <motion.li
+                    key={dotIdx}
+                    layout
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{
+                      width: isActive ? 24 : 8,
+                      height: 8,
+                      opacity: 1,
+                      backgroundColor: isActive ? "#D4537E" : "#F1D6DE",
+                    }}
+                    exit={{ scale: 0.8, opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                    aria-current={isActive ? "step" : undefined}
+                    className="rounded-full"
+                  />
+                );
+              })}
+            </AnimatePresence>
+          </ol>
+        </nav>
 
-      {/* Card container with faux stack cue */}
-      <div className="relative w-80 sm:w-96 md:w-[420px] max-w-full">
-        {showStackPeek && (
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 translate-x-3.5 translate-y-2 rounded-[36px] md:rounded-[40px] border border-[#ECDCE3] bg-[#FCF8FA] shadow-[0_10px_35px_rgba(255,150,170,0.18)] -z-10"
-          />
-        )}
+        {/* Card container with faux stack cue */}
+        <div className="relative w-[clamp(260px,calc(100svh-17rem),420px)] max-w-full">
+          {showStackPeek && (
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 translate-x-3.5 translate-y-2 rounded-[36px] md:rounded-[40px] border border-[#ECDCE3] bg-[#FCF8FA] shadow-[0_10px_35px_rgba(255,150,170,0.18)] -z-10"
+            />
+          )}
 
-        <AnimatePresence mode="wait">
-          <motion.article
-            key={currentIndex}
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0.2}
-            onDragEnd={handleDragEnd}
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="w-full rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_12px_40px_rgba(255,150,170,0.22)] overflow-hidden flex flex-col p-4 sm:p-5 cursor-grab active:cursor-grabbing select-none"
-          >
-            {/* Media figure */}
-            <figure className="relative w-full aspect-square rounded-[26px] md:rounded-[28px] overflow-hidden bg-[#FAF7F8] flex items-center justify-center shrink-0">
-              {activeMedia ? (
-                <>
-                  {!isCurrentMediaLoaded && (
-                    <Skeleton className="absolute inset-0 w-full h-full rounded-[26px] md:rounded-[28px]" />
+          <AnimatePresence mode="wait" custom={direction}>
+            <motion.article
+              key={currentIndex}
+              custom={direction}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.2}
+              onDragEnd={handleDragEnd}
+              variants={{
+                enter: (dir: number) => ({
+                  opacity: 0,
+                  x: shouldReduceMotion ? 0 : dir * 60,
+                }),
+                center: {
+                  opacity: 1,
+                  x: 0,
+                },
+                exit: (dir: number) => ({
+                  opacity: 0,
+                  x: shouldReduceMotion ? 0 : dir * -60,
+                }),
+              }}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{
+                duration: shouldReduceMotion ? 0.15 : undefined,
+                type: shouldReduceMotion ? "tween" : "spring",
+                stiffness: 300,
+                damping: 30,
+              }}
+              className="w-full rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_12px_40px_rgba(255,150,170,0.22)] overflow-hidden flex flex-col p-4 sm:p-5 cursor-grab active:cursor-grabbing select-none"
+            >
+              {/* Media figure */}
+              <figure className="relative w-full aspect-square rounded-[26px] md:rounded-[28px] overflow-hidden bg-[#FAF7F8] flex items-center justify-center shrink-0 select-none [-webkit-touch-callout:none]">
+                {activeMedia ? (
+                  <>
+                    {!isCurrentMediaLoaded && (
+                      <Skeleton className="absolute inset-0 w-full h-full rounded-[26px] md:rounded-[28px]" />
+                    )}
+                    {isVideo(activeMedia.filename) ? (
+                      <video
+                        src={mediaSrc}
+                        preload="metadata"
+                        className={`w-full h-full object-cover transition-opacity duration-300 pointer-events-none ${
+                          isCurrentMediaLoaded ? 'opacity-100' : 'opacity-0'
+                        }`}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        onLoadedMetadata={() => markLoaded(currentIndex)}
+                        onCanPlay={() => markLoaded(currentIndex)}
+                        onLoadedData={() => markLoaded(currentIndex)}
+                      />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={mediaSrc}
+                        alt="Memory media"
+                        draggable={false}
+                        ref={(el) => {
+                          if (el && el.complete && el.naturalWidth > 0) {
+                            markLoaded(currentIndex);
+                          }
+                        }}
+                        style={{
+                          objectPosition: `${activeMemory?.mediaPositionX ?? 50}% ${activeMemory?.mediaPositionY ?? 50}%`,
+                          transform: `scale(${activeMemory?.mediaScale ?? 1})`,
+                        }}
+                        className={`w-full h-full object-cover transition-opacity duration-300 pointer-events-none ${
+                          isCurrentMediaLoaded ? 'opacity-100' : 'opacity-0'
+                        }`}
+                        onLoad={() => markLoaded(currentIndex)}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div className="text-muted text-sm px-4 text-center">No media available</div>
+                )}
+              </figure>
+
+              {/* Integrated caption inside the card */}
+              {(activeMemory?.heading || activeMemory?.text) && (
+                <div className="flex flex-col items-center text-center justify-center pt-3 sm:pt-4 pb-1 px-2 w-full max-h-[22svh] overflow-y-auto overscroll-contain">
+                  {activeMemory?.heading && (
+                    <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground leading-snug mb-1">
+                      {activeMemory.heading}
+                    </h2>
                   )}
-                  {isVideo(activeMedia.filename) ? (
-                    <video
-                      src={mediaSrc}
-                      className={`w-full h-full object-cover transition-opacity duration-300 ${
-                        isCurrentMediaLoaded ? 'opacity-100' : 'opacity-0'
-                      }`}
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      onLoadedData={() => setLoadedMediaIndex(currentIndex)}
-                    />
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={mediaSrc}
-                      alt="Memory media"
-                      className={`w-full h-full object-cover transition-opacity duration-300 ${
-                        isCurrentMediaLoaded ? 'opacity-100' : 'opacity-0'
-                      }`}
-                      onLoad={() => setLoadedMediaIndex(currentIndex)}
-                    />
+                  {activeMemory?.text && (
+                    <p className="text-xs sm:text-sm md:text-base text-foreground/80 leading-relaxed max-w-sm">
+                      {activeMemory.text}
+                    </p>
                   )}
-                </>
-              ) : (
-                <div className="text-muted text-sm px-4 text-center">No media available</div>
+                </div>
               )}
-            </figure>
-
-            {/* Integrated caption inside the card */}
-            {(activeMemory?.heading || activeMemory?.text) && (
-              <div className="flex flex-col items-center text-center justify-center pt-4 pb-1 px-2 w-full">
-                {activeMemory?.heading && (
-                  <h2 className="text-xl sm:text-2xl font-bold text-foreground leading-snug mb-1">
-                    {activeMemory.heading}
-                  </h2>
-                )}
-                {activeMemory?.text && (
-                  <p className="text-sm sm:text-base text-foreground/80 leading-relaxed max-w-sm">
-                    {activeMemory.text}
-                  </p>
-                )}
-              </div>
-            )}
-          </motion.article>
-        </AnimatePresence>
-      </div>
+            </motion.article>
+          </AnimatePresence>
+        </div>
 
       {/* Unified control toolbar directly below the card */}
       <footer aria-label="Timeline navigation controls" className="flex items-center justify-center gap-4 mt-6 z-10">
@@ -231,6 +335,23 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
         </button>
       </footer>
+
+      {/* Rewind Hold Hint (shown on tap) */}
+      <div className="h-6 mt-2 flex items-center justify-center">
+        <AnimatePresence>
+          {showRewindHint && (
+            <motion.p
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="text-xs text-muted font-medium bg-white/80 backdrop-blur-xs px-3 py-1 rounded-full border border-[#F1E8EC] shadow-2xs"
+            >
+              Hold to rewind ↺
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </div>
     </section>
+  </MotionConfig>
   );
 }

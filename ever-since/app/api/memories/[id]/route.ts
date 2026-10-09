@@ -22,11 +22,29 @@ export async function PUT(request: Request, context: RouteContext) {
       const existing = db.memories.find((m) => m.id === id);
       if (!existing) return db;
 
+      let mediaPositionX = existing.mediaPositionX ?? 50;
+      if (body.mediaPositionX !== undefined && typeof body.mediaPositionX === 'number') {
+        mediaPositionX = Math.max(0, Math.min(100, Math.round(body.mediaPositionX)));
+      }
+
+      let mediaPositionY = existing.mediaPositionY ?? 50;
+      if (body.mediaPositionY !== undefined && typeof body.mediaPositionY === 'number') {
+        mediaPositionY = Math.max(0, Math.min(100, Math.round(body.mediaPositionY)));
+      }
+
+      let mediaScale = existing.mediaScale ?? 1;
+      if (body.mediaScale !== undefined && typeof body.mediaScale === 'number') {
+        mediaScale = Math.max(1, Math.min(3, Math.round(body.mediaScale * 10) / 10));
+      }
+
       updatedMemory = {
         id: existing.id,
         heading: body.heading !== undefined ? body.heading : existing.heading,
         text: body.text !== undefined ? body.text : existing.text,
         mediaId: body.mediaId !== undefined ? body.mediaId : existing.mediaId,
+        mediaPositionX,
+        mediaPositionY,
+        mediaScale,
       };
 
       return {

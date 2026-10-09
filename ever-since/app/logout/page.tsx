@@ -33,7 +33,7 @@ export default function LogoutPage() {
   }, [router]);
 
   return (
-    <main className="min-h-screen relative flex flex-col items-center justify-center p-6 md:p-12 select-none">
+    <main className="min-h-dvh relative flex flex-col items-center justify-center px-4 py-6 sm:p-6 md:p-12 select-none overflow-x-hidden">
       <article className="w-80 sm:w-96 md:w-[420px] max-w-full rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_12px_40px_rgba(255,150,170,0.22)] p-8 sm:p-10 flex flex-col items-center justify-center text-center">
         {/* Soft progress indicator matching main flow */}
         <div className="flex items-center justify-center gap-1.5 mb-5">
@@ -55,7 +55,7 @@ export default function LogoutPage() {
             <p className="text-sm font-medium text-rose-500">Failed to log out.</p>
             <button
               onClick={() => router.push('/login')}
-              className="rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white px-5 py-2 text-xs font-semibold transition-all shadow-[0_4px_16px_rgba(244,114,182,0.4)]"
+              className="min-h-11 rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white px-6 py-2.5 text-sm font-semibold transition-all shadow-[0_4px_16px_rgba(244,114,182,0.4)] flex items-center justify-center"
             >
               Go to Login
             </button>

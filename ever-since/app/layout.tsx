@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Nunito } from "next/font/google";
 import "./globals.css";
 
@@ -11,6 +11,13 @@ const nunito = Nunito({
 export const metadata: Metadata = {
   title: "EverSince",
   description: "Ever since we met...",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#fffafa",
 };
 
 export default function RootLayout({

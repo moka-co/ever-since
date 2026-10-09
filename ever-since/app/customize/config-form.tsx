@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Alert from './alert';
 
@@ -12,14 +12,21 @@ export default function ConfigForm({ initialDate }: ConfigFormProps) {
   const router = useRouter();
   const [date, setDate] = useState<string>(initialDate);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isSaved) {
+      const timer = setTimeout(() => setIsSaved(false), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [isSaved]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErrorMessage(null);
-    setSuccessMessage(null);
     setIsSaving(true);
+    setIsSaved(false);
 
     try {
       const response = await fetch('/api/config', {
@@ -35,7 +42,7 @@ export default function ConfigForm({ initialDate }: ConfigFormProps) {
         return;
       }
 
-      setSuccessMessage('Anniversary date saved successfully.');
+      setIsSaved(true);
       router.refresh();
     } catch {
       setErrorMessage('A network error occurred while saving. Please try again.');
@@ -56,9 +63,6 @@ export default function ConfigForm({ initialDate }: ConfigFormProps) {
       {errorMessage && (
         <Alert type="error" message={errorMessage} onDismiss={() => setErrorMessage(null)} />
       )}
-      {successMessage && (
-        <Alert type="success" message={successMessage} onDismiss={() => setSuccessMessage(null)} />
-      )}
 
       <form onSubmit={handleSubmit} className="flex flex-wrap sm:flex-nowrap items-center gap-3">
         <input
@@ -72,9 +76,13 @@ export default function ConfigForm({ initialDate }: ConfigFormProps) {
         <button
           type="submit"
           disabled={isSaving}
-          className="rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white px-5 py-2 text-sm font-semibold transition-all shadow-[0_2px_10px_rgba(244,114,182,0.35)] hover:shadow-[0_4px_14px_rgba(244,114,182,0.5)] disabled:opacity-50 disabled:from-gray-300 disabled:to-gray-300 disabled:shadow-none hover:scale-102 active:scale-98 shrink-0"
+          className={`rounded-full px-5 py-2 text-sm font-semibold transition-all shadow-md shrink-0 hover:scale-102 active:scale-98 disabled:opacity-50 disabled:shadow-none ${
+            isSaved
+              ? 'bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-500 hover:to-emerald-600 text-white shadow-[0_2px_10px_rgba(16,185,129,0.3)]'
+              : 'bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white shadow-[0_2px_10px_rgba(244,114,182,0.35)] hover:shadow-[0_4px_14px_rgba(244,114,182,0.5)] disabled:from-gray-300 disabled:to-gray-300'
+          }`}
         >
-          {isSaving ? 'Saving...' : 'Save Date'}
+          {isSaving ? 'Saving...' : isSaved ? '✓ Saved!' : 'Save Date'}
         </button>
       </form>
     </div>

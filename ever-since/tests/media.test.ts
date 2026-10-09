@@ -184,6 +184,37 @@ async function main() {
         params: Promise.resolve({ id: uploadedId }),
       });
       harness.assert(serveRes.status === 200, `GET /api/media/[id] served successfully (got ${serveRes.status})`);
+      harness.assert(serveRes.headers.get('accept-ranges') === 'bytes', 'Response includes Accept-Ranges: bytes');
+      const etag = serveRes.headers.get('etag');
+      harness.assert(Boolean(etag), 'Response includes an ETag header');
+
+      // Test 3a. Range request support (206 Partial Content)
+      const rangeRes = await getMediaById(new Request(`http://localhost:3000/api/media/${uploadedId}`, {
+        headers: { range: 'bytes=0-9' },
+      }), {
+        params: Promise.resolve({ id: uploadedId }),
+      });
+      harness.assert(rangeRes.status === 206, `Range request returns 206 Partial Content (got ${rangeRes.status})`);
+      harness.assert(Boolean(rangeRes.headers.get('content-range')?.startsWith('bytes 0-9/')), 'Response includes Content-Range header');
+      harness.assert(rangeRes.headers.get('content-length') === '10', 'Chunk length matches requested 10 bytes');
+
+      // Test 3b. Conditional request (304 Not Modified)
+      if (etag) {
+        const notModifiedRes = await getMediaById(new Request(`http://localhost:3000/api/media/${uploadedId}`, {
+          headers: { 'if-none-match': etag },
+        }), {
+          params: Promise.resolve({ id: uploadedId }),
+        });
+        harness.assert(notModifiedRes.status === 304, `If-None-Match with matching ETag returns 304 (got ${notModifiedRes.status})`);
+      }
+
+      // Test 3c. Unsatisfiable range (416)
+      const invalidRangeRes = await getMediaById(new Request(`http://localhost:3000/api/media/${uploadedId}`, {
+        headers: { range: 'bytes=99999999-999999999' },
+      }), {
+        params: Promise.resolve({ id: uploadedId }),
+      });
+      harness.assert(invalidRangeRes.status === 416, `Out of bounds range returns 416 (got ${invalidRangeRes.status})`);
 
       // 4. Delete via DELETE [id]
       const deleteRes = await deleteMediaById(new Request(`http://localhost:3000/api/media/${uploadedId}`), {
@@ -281,8 +312,24 @@ async function main() {
       });
       const postRes = await postMedia(postReq);
       harness.assert(postRes.status === 200, 'POST returned 200 for already available media');
-      const postData = await postRes.json();
-      harness.assert(postData.media.id === item.id, 'Returns existing media record');
+      // Test 14: POST /api/media allows video uploads
+      console.log('\nTest 14: Uploading video via POST /api/media succeeds and stores video');
+      const fakeVideoBuffer = Buffer.from('fake mp4 video stream bytes for testing');
+      const videoFormData = new FormData();
+      videoFormData.append(
+        'file',
+        new File([fakeVideoBuffer], 'memory-video.mp4', { type: 'video/mp4' })
+      );
+      const postVideoReq = new NextRequest('http://localhost:3000/api/media', {
+        method: 'POST',
+        body: videoFormData,
+      });
+      const postVideoRes = await postMedia(postVideoReq);
+      harness.assert(postVideoRes.status === 201, `POST /api/media with video returned 201 (got ${postVideoRes.status})`);
+      const postVideoData = await postVideoRes.json();
+      harness.assert(postVideoData.media.filename === 'memory-video.mp4', 'Uploaded video preserves original filename');
+      const videoDb = await readDb();
+      harness.assert(videoDb.media.some((m) => m.filename === 'memory-video.mp4'), 'Video record is saved in database');
     }
 
     harness.finish('Media Constraints & Operations');

@@ -14,7 +14,10 @@ export const memorySchema = z.object({
     id: z.string().uuid(),
     heading: z.string().max(100).nullable(),
     text: z.string().max(100).nullable(),
-    mediaId: z.string().nullable() //Same as in mediaRecordSchema
+    mediaId: z.string().nullable(), //Same as in mediaRecordSchema
+    mediaPositionX: z.number().min(0).max(100),
+    mediaPositionY: z.number().min(0).max(100),
+    mediaScale: z.number().min(1).max(3)
 })
 export type MemoryRecord = z.infer<typeof memorySchema>;
 

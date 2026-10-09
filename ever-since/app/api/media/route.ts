@@ -49,9 +49,22 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData().catch(() => null);
-    if (!formData) {
-      return NextResponse.json({ error: 'Invalid form data payload' }, { status: 400 });
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch (parseError: unknown) {
+      const parseMessage = parseError instanceof Error ? parseError.message : String(parseError);
+      logger.error(
+        { event: 'media_form_data_parse_failed', error: parseMessage },
+        `Failed to parse multipart form data: ${parseMessage}`
+      );
+      return NextResponse.json(
+        {
+          error:
+            'Failed to parse uploaded file. Please ensure the file is a valid photo (up to 10MB) or video (up to 50MB).',
+        },
+        { status: 400 }
+      );
     }
 
     const file = formData.get('file');

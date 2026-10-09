@@ -5,6 +5,7 @@ import ConfigForm from './config-form';
 import SealPhotoManager from './seal-photo-manager';
 import MediaManager from './media-manager';
 import MemoriesManager from './memories-manager';
+import CustomizeTabs from './customize-tabs';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,29 +50,35 @@ export default async function CustomizePage() {
           </Link>
         </header>
 
-        {/* Story Initiation Sub-Section: 2 Columns (Anniversary Date & First Photo) */}
-        <section
-          aria-label="Story Initiation and Login Configuration"
-          className="pb-8 border-b border-[#C4A2B2]"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 divide-y md:divide-y-0 md:divide-x divide-[#C4A2B2]">
-            <div className="flex flex-col">
-              <ConfigForm initialDate={db.config.anniversaryDate} />
-            </div>
-            <div className="flex flex-col pt-6 md:pt-0 md:pl-8">
-              <SealPhotoManager
-                initialSealMediaId={db.config.sealMediaId ?? null}
-                mediaList={db.media}
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Media Management */}
-        <MediaManager initialMedia={db.media} />
-
-        {/* Memory Authoring & Memories Timeline List */}
-        <MemoriesManager initialMemories={db.memories} mediaList={db.media} />
+        {(() => {
+          const usedMediaIds = Array.from(
+            new Set([
+              ...db.memories.map((m) => m.mediaId).filter((id): id is string => Boolean(id)),
+              ...(db.config.sealMediaId ? [db.config.sealMediaId] : []),
+            ])
+          );
+          return (
+            <CustomizeTabs
+              generalSettings={
+                <section key="general-settings" aria-label="Story Initiation and Login Configuration">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 divide-y md:divide-y-0 md:divide-x divide-[#C4A2B2]">
+                    <div className="flex flex-col">
+                      <ConfigForm initialDate={db.config.anniversaryDate} />
+                    </div>
+                    <div className="flex flex-col pt-6 md:pt-0 md:pl-8">
+                      <SealPhotoManager
+                        initialSealMediaId={db.config.sealMediaId ?? null}
+                        mediaList={db.media}
+                      />
+                    </div>
+                  </div>
+                </section>
+              }
+              mediaLibrary={<MediaManager key="media-library" initialMedia={db.media} usedMediaIds={usedMediaIds} />}
+              memoriesTimeline={<MemoriesManager key="memories-timeline" initialMemories={db.memories} mediaList={db.media} />}
+            />
+          );
+        })()}
       </div>
     </main>
   );

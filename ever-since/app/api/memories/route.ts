@@ -34,11 +34,23 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json().catch(() => ({}));
+    const mediaPositionX = typeof body.mediaPositionX === 'number'
+      ? Math.max(0, Math.min(100, Math.round(body.mediaPositionX)))
+      : 50;
+    const mediaPositionY = typeof body.mediaPositionY === 'number'
+      ? Math.max(0, Math.min(100, Math.round(body.mediaPositionY)))
+      : 50;
+    const mediaScale = typeof body.mediaScale === 'number'
+      ? Math.max(1, Math.min(3, Math.round(body.mediaScale * 10) / 10))
+      : 1;
     const newMemory = {
       id: randomUUID(),
       heading: body.heading ?? null,
       text: body.text ?? null,
       mediaId: body.mediaId ?? null,
+      mediaPositionX,
+      mediaPositionY,
+      mediaScale,
     };
 
     await updateDb((currentDb) => ({

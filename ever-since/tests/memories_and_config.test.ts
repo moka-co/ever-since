@@ -247,9 +247,118 @@ async function main() {
       harness.assert(invalidRes.status === 400, `POST returned 400 on >100 chars (got ${invalidRes.status})`);
     }
 
-    // Test 10: Memories maximum quota of 50 enforcement
+    // Test 10: mediaPositionX support, default value, and clamping in POST / PUT
     {
-      console.log('\nTest 10: Schema & API enforce maximum 50 memories limit');
+      console.log('\nTest 10: mediaPositionX support, default value, and clamping');
+      // POST with explicit mediaPositionX: 75
+      const postReq1 = new Request('http://localhost:3000/api/memories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          heading: 'Positioned Memory',
+          text: 'Custom framing',
+          mediaPositionX: 75,
+        }),
+      });
+      const res1 = await postMemory(postReq1);
+      harness.assert(res1.status === 201, 'POST with mediaPositionX returned 201');
+      const data1 = await res1.json();
+      harness.assert(data1.memory.mediaPositionX === 75, `memory.mediaPositionX is 75 (got ${data1.memory.mediaPositionX})`);
+      const testMemId = data1.memory.id;
+
+      // POST without mediaPositionX defaults to 50
+      const postReq2 = new Request('http://localhost:3000/api/memories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          heading: 'Default Position Memory',
+          text: 'Default framing',
+        }),
+      });
+      const res2 = await postMemory(postReq2);
+      harness.assert(res2.status === 201, 'POST without mediaPositionX returned 201');
+      const data2 = await res2.json();
+      harness.assert(data2.memory.mediaPositionX === 50, `Default mediaPositionX is 50 (got ${data2.memory.mediaPositionX})`);
+
+      // PUT updates mediaPositionX to 20
+      const putReq1 = new Request(`http://localhost:3000/api/memories/${testMemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mediaPositionX: 20,
+        }),
+      });
+      const putRes1 = await putMemory(putReq1, { params: Promise.resolve({ id: testMemId }) });
+      harness.assert(putRes1.status === 200, 'PUT returned 200');
+      const putData1 = await putRes1.json();
+      harness.assert(putData1.memory.mediaPositionX === 20, `PUT updated mediaPositionX to 20 (got ${putData1.memory.mediaPositionX})`);
+
+      // PUT clamps value > 100 to 100
+      const putReqClampHigh = new Request(`http://localhost:3000/api/memories/${testMemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mediaPositionX: 130,
+        }),
+      });
+      const putResClampHigh = await putMemory(putReqClampHigh, { params: Promise.resolve({ id: testMemId }) });
+      const putDataClampHigh = await putResClampHigh.json();
+      harness.assert(putDataClampHigh.memory.mediaPositionX === 100, `Clamped high mediaPositionX to 100 (got ${putDataClampHigh.memory.mediaPositionX})`);
+
+      // PUT clamps value < 0 to 0
+      const putReqClampLow = new Request(`http://localhost:3000/api/memories/${testMemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mediaPositionX: -15,
+        }),
+      });
+      const putResClampLow = await putMemory(putReqClampLow, { params: Promise.resolve({ id: testMemId }) });
+      const putDataClampLow = await putResClampLow.json();
+      harness.assert(putDataClampLow.memory.mediaPositionX === 0, `Clamped low mediaPositionX to 0 (got ${putDataClampLow.memory.mediaPositionX})`);
+
+      // Verify persisted in DB
+      const db = await readDb();
+      const persistedMem = db.memories.find((m) => m.id === testMemId);
+      harness.assert(persistedMem?.mediaPositionX === 0, 'Persisted memory has mediaPositionX 0 in DB');
+
+      // Test mediaPositionY and mediaScale defaults and clamping
+      const zoomPostReq = new Request('http://localhost:3000/api/memories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          heading: 'Zoomed Memory',
+          text: '2D positioning and zoom',
+          mediaPositionX: 40,
+          mediaPositionY: 60,
+          mediaScale: 2.2,
+        }),
+      });
+      const zoomRes = await postMemory(zoomPostReq);
+      harness.assert(zoomRes.status === 201, 'POST with mediaScale and mediaPositionY returned 201');
+      const zoomData = await zoomRes.json();
+      harness.assert(zoomData.memory.mediaPositionY === 60, `mediaPositionY is 60 (got ${zoomData.memory.mediaPositionY})`);
+      harness.assert(zoomData.memory.mediaScale === 2.2, `mediaScale is 2.2 (got ${zoomData.memory.mediaScale})`);
+      const zoomMemId = zoomData.memory.id;
+
+      // PUT updates mediaScale with clamping (clamping > 3 to 3, < 1 to 1)
+      const putZoomHigh = new Request(`http://localhost:3000/api/memories/${zoomMemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mediaScale: 5.0,
+          mediaPositionY: 120,
+        }),
+      });
+      const putZoomRes = await putMemory(putZoomHigh, { params: Promise.resolve({ id: zoomMemId }) });
+      const putZoomData = await putZoomRes.json();
+      harness.assert(putZoomData.memory.mediaScale === 3, `Clamped high mediaScale to 3 (got ${putZoomData.memory.mediaScale})`);
+      harness.assert(putZoomData.memory.mediaPositionY === 100, `Clamped high mediaPositionY to 100 (got ${putZoomData.memory.mediaPositionY})`);
+    }
+
+    // Test 11: Memories maximum quota of 50 enforcement
+    {
+      console.log('\nTest 11: Schema & API enforce maximum 50 memories limit');
       const current = await readDb();
       const needed = 50 - current.memories.length;
       for (let i = 0; i < needed; i++) {

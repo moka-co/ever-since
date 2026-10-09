@@ -102,7 +102,7 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
     }
   }
 
-  // Date input auto-advance handlers
+  // Date input auto-advance and navigation handlers
   function handleDayChange(e: ChangeEvent<HTMLInputElement>) {
     const val = e.target.value.replace(/\D/g, '');
     setDay(val);
@@ -125,6 +125,33 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
     const val = e.target.value.replace(/\D/g, '');
     setYear(val);
     setDateError('');
+  }
+
+  function handleMonthKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Backspace' && month === '') {
+      dayRef.current?.focus();
+    }
+  }
+
+  function handleYearKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Backspace' && year === '') {
+      monthRef.current?.focus();
+    }
+  }
+
+  function handleDatePaste(e: React.ClipboardEvent<HTMLInputElement>) {
+    const paste = e.clipboardData.getData('text').trim();
+    // Match DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY, or DDMMYYYY
+    const match = paste.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/) || paste.match(/^(\d{2})(\d{2})(\d{4})$/);
+    if (match) {
+      e.preventDefault();
+      const [, pDay, pMonth, pYear] = match;
+      setDay(pDay.padStart(2, '0'));
+      setMonth(pMonth.padStart(2, '0'));
+      setYear(pYear);
+      setDateError('');
+      yearRef.current?.focus();
+    }
   }
 
   // Date submission with escalating feedback & 30-second cooldown
@@ -200,9 +227,6 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
         >
           Insert the password
         </h1>
-        <p className="text-xs text-muted mb-6">
-          Ask your nerd for the secret key
-        </p>
 
         <form
           onSubmit={handlePasswordSubmit}
@@ -215,9 +239,14 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
             id="secret-input"
             type="password"
             name="password"
-            placeholder="ask your nerd"
+            placeholder="Hint: ask your soul mate"
             minLength={20}
             maxLength={20}
+            autoComplete="current-password"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="go"
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
@@ -241,7 +270,7 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
           <button
             type="submit"
             disabled={isSubmitting}
-            className="rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white px-7 py-2.5 text-sm font-semibold transition-all shadow-[0_4px_16px_rgba(244,114,182,0.4)] hover:shadow-[0_6px_20px_rgba(244,114,182,0.55)] hover:scale-105 active:scale-95 disabled:opacity-50 disabled:from-gray-300 disabled:to-gray-300 disabled:shadow-none disabled:hover:scale-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
+            className="min-h-11 rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white px-7 py-2.5 text-sm font-semibold transition-all shadow-[0_4px_16px_rgba(244,114,182,0.4)] hover:shadow-[0_6px_20px_rgba(244,114,182,0.55)] hover:scale-105 active:scale-95 disabled:opacity-50 disabled:from-gray-300 disabled:to-gray-300 disabled:shadow-none disabled:hover:scale-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
           >
             {isSubmitting ? 'Checking...' : 'Log in'}
           </button>
@@ -315,9 +344,12 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
                 maxLength={2}
                 inputMode="numeric"
                 pattern="[0-9]*"
+                autoComplete="off"
+                enterKeyHint="next"
                 aria-label="Day"
                 value={day}
                 onChange={handleDayChange}
+                onPaste={handleDatePaste}
                 disabled={isVerifyingDate}
                 className="w-14 h-12 text-center rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8] text-base font-semibold text-foreground focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta transition-colors disabled:opacity-50"
                 autoFocus
@@ -332,9 +364,13 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
                 maxLength={2}
                 inputMode="numeric"
                 pattern="[0-9]*"
+                autoComplete="off"
+                enterKeyHint="next"
                 aria-label="Month"
                 value={month}
                 onChange={handleMonthChange}
+                onKeyDown={handleMonthKeyDown}
+                onPaste={handleDatePaste}
                 disabled={isVerifyingDate}
                 className="w-14 h-12 text-center rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8] text-base font-semibold text-foreground focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta transition-colors disabled:opacity-50"
                 required
@@ -348,9 +384,13 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
                 maxLength={4}
                 inputMode="numeric"
                 pattern="[0-9]*"
+                autoComplete="off"
+                enterKeyHint="go"
                 aria-label="Year"
                 value={year}
                 onChange={handleYearChange}
+                onKeyDown={handleYearKeyDown}
+                onPaste={handleDatePaste}
                 disabled={isVerifyingDate}
                 className="w-20 h-12 text-center rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8] text-base font-semibold text-foreground focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta transition-colors disabled:opacity-50"
                 required
@@ -359,20 +399,18 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
 
             {/* Space for error message */}
             <div className="min-h-5 mb-3 flex items-center justify-center">
-              <span
-                className={`text-xs ${
-                  dateError ? 'text-rose-500 font-medium' : 'text-muted'
-                }`}
-              >
-                {dateError || 'Space for errors message'}
-              </span>
+              {dateError && (
+                <span role="status" className="text-xs text-rose-500 font-medium">
+                  {dateError}
+                </span>
+              )}
             </div>
 
             {/* Gradient Primary Action Button matching main flow style */}
             <button
               type="submit"
               disabled={isVerifyingDate}
-              className="rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white px-7 py-2.5 text-sm font-semibold transition-all shadow-[0_4px_16px_rgba(244,114,182,0.4)] hover:shadow-[0_6px_20px_rgba(244,114,182,0.55)] hover:scale-105 active:scale-95 disabled:opacity-50 disabled:from-gray-300 disabled:to-gray-300 disabled:shadow-none hover:scale-102 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
+              className="min-h-11 rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white px-7 py-2.5 text-sm font-semibold transition-all shadow-[0_4px_16px_rgba(244,114,182,0.4)] hover:shadow-[0_6px_20px_rgba(244,114,182,0.55)] hover:scale-105 active:scale-95 disabled:opacity-50 disabled:from-gray-300 disabled:to-gray-300 disabled:shadow-none hover:scale-102 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
             >
               {isVerifyingDate ? 'Checking...' : 'Start Story'}
             </button>
