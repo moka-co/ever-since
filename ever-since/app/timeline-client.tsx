@@ -16,10 +16,46 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
   const [loadedIndices, setLoadedIndices] = useState<Set<number>>(new Set());
   const [isRewinding, setIsRewinding] = useState(false);
   const [showRewindHint, setShowRewindHint] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const rewindTimeout = useRef<NodeJS.Timeout | null>(null);
   const rewindHintTimeout = useRef<NodeJS.Timeout | null>(null);
   const pointerDownTime = useRef<number>(0);
   const shouldReduceMotion = useReducedMotion();
+
+  // Pause video and reset time when navigating memories
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
+    }
+  }, [currentIndex]);
+
+  const togglePlayPause = () => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      // Direct user interaction gesture unblocks unmuted audio in Brave/Chrome/Safari
+      videoRef.current.muted = false;
+      videoRef.current
+        .play()
+        .then(() => {
+          setIsPlaying(true);
+        })
+        .catch((err) => {
+          console.warn("Playback error:", err);
+          if (videoRef.current) {
+            videoRef.current.muted = true;
+            videoRef.current
+              .play()
+              .then(() => setIsPlaying(true))
+              .catch(() => {});
+          }
+        });
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
 
   const isCurrentMediaLoaded = loadedIndices.has(currentIndex);
 
@@ -73,6 +109,7 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
   const visibleDots = memories.slice(startDotIndex, endDotIndex).map((_, idx) => startDotIndex + idx);
 
   const handleNext = () => {
+    setIsPlaying(false);
     if (currentIndex < memories.length - 1) {
       setDirection(1);
       setCurrentIndex((prev) => prev + 1);
@@ -80,6 +117,7 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
   };
 
   const handlePrev = () => {
+    setIsPlaying(false);
     if (currentIndex > 0) {
       setDirection(-1);
       setCurrentIndex((prev) => prev - 1);
@@ -101,6 +139,7 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
     pointerDownTime.current = Date.now();
     setIsRewinding(true);
     rewindTimeout.current = setTimeout(() => {
+      setIsPlaying(false);
       setDirection(-1);
       setCurrentIndex(0);
       setIsRewinding(false);
@@ -225,20 +264,63 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
                       <Skeleton className="absolute inset-0 w-full h-full rounded-[26px] md:rounded-[28px]" />
                     )}
                     {isVideo(activeMedia.filename) ? (
-                      <video
-                        src={mediaSrc}
-                        preload="metadata"
-                        className={`w-full h-full object-cover transition-opacity duration-300 pointer-events-none ${
-                          isCurrentMediaLoaded ? 'opacity-100' : 'opacity-0'
-                        }`}
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        onLoadedMetadata={() => markLoaded(currentIndex)}
-                        onCanPlay={() => markLoaded(currentIndex)}
-                        onLoadedData={() => markLoaded(currentIndex)}
-                      />
+                      <motion.div
+                        onTap={togglePlayPause}
+                        className="relative w-full h-full cursor-pointer group select-none"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={isPlaying ? "Pause video" : "Play video with sound"}
+                        onKeyDown={(e) => {
+                          if (e.key === " " || e.key === "Enter") {
+                            e.preventDefault();
+                            togglePlayPause();
+                          }
+                        }}
+                      >
+                        <video
+                          ref={videoRef}
+                          src={mediaSrc}
+                          preload="metadata"
+                          loop
+                          playsInline
+                          onPlay={() => setIsPlaying(true)}
+                          onPause={() => setIsPlaying(false)}
+                          onEnded={() => setIsPlaying(false)}
+                          onLoadedMetadata={() => markLoaded(currentIndex)}
+                          onCanPlay={() => markLoaded(currentIndex)}
+                          onLoadedData={() => markLoaded(currentIndex)}
+                          className={`w-full h-full object-cover transition-opacity duration-300 pointer-events-none ${
+                            isCurrentMediaLoaded ? 'opacity-100' : 'opacity-0'
+                          }`}
+                        />
+
+                        {/* Floating Play / Pause Overlay */}
+                        <div
+                          className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-300 pointer-events-none ${
+                            isPlaying
+                              ? 'opacity-0 group-hover:opacity-100 bg-black/15'
+                              : 'opacity-100 bg-black/20'
+                          }`}
+                        >
+                          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white/95 text-foreground flex items-center justify-center shadow-lg backdrop-blur-xs transition-transform duration-200 transform group-hover:scale-105">
+                            {isPlaying ? (
+                              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                                <rect x="6" y="4" width="4" height="16" rx="1.5" />
+                                <rect x="14" y="4" width="4" height="16" rx="1.5" />
+                              </svg>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="currentColor" className="ml-1 text-[#DB2777]">
+                                <polygon points="5 3 19 12 5 21 5 3" />
+                              </svg>
+                            )}
+                          </div>
+                          {!isPlaying && (
+                            <span className="mt-3 bg-black/55 text-white text-[11px] font-medium px-3 py-1 rounded-full backdrop-blur-xs shadow-xs">
+                              Tap to play
+                            </span>
+                          )}
+                        </div>
+                      </motion.div>
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img

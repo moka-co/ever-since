@@ -114,7 +114,7 @@ ever-since/
   - **Lazy Media Preloading Pipeline**: Background preloading executes upon timeline mount for all timeline memory images using `new Image()` prefetching, ensuring instant transitions without blank card flashes.
   - **Hydration Race Condition Fix**: Fixes the issue where browser-cached images or SSR DOM hydration caused the first card image to remain invisible/empty (skeleton overlay stuck). React 19 synthetic `onLoad` handlers do not fire if `img.complete` is already true prior to event attachment. Uses an image ref callback (`if (el.complete && el.naturalWidth > 0) markLoaded(index)`) combined with a `loadedIndices` Set state to guarantee immediate visibility on initial load.
   - **2D Pan & Zoom Rendering**: Renders photo elements with `objectPosition: ${mediaPositionX}% ${mediaPositionY}%` and `transform: scale(${mediaScale})`.
-  - **Video Audio Controls**: Includes dedicated volume adjustment buttons (`−`, `+`, mute/unmute toggle) appearing dynamically when active memory is a video.
+  - **Click-to-Play Video Playback with Sound**: Videos in the main flow start paused with a subtle play overlay. Clicking or tapping the video acts as an explicit user interaction gesture that unblocks browser autoplay audio policies (including Brave and Safari), starting playback unmuted. Tapping again pauses playback; navigating cards automatically pauses and resets the video.
 
 **Storage Layer**:
 - `lib/storage/`

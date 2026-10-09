@@ -17,7 +17,7 @@ The base user can:
 - In case of incorrect password attempts, receive standard error feedback
 - Reload the page or close the page and still be logged in for 72 hours (from the login).
 - Insert the date to start the main flow (in case of incorrect date entries, receive escalating playful feedback across 3 attempts, followed by a 30-second cooldown lockout screen with live countdown timer)
-- Experience the main flow, including interacting with items and viewing every memory with automatic image preloading (preventing blank flashes) and video audio controls (volume up/down and unmute).
+- Experience the main flow, including interacting with items and viewing every memory with automatic image preloading (preventing blank flashes) and click-to-play video playback with unmuted sound.
 - The user can either swipe (mobile) left/right or click on "<" or ">" arrow to go to prev/next memory
 - At any point in the main flow, the base user can "rewind" (start from the beginning) and also go back
 

@@ -28,6 +28,9 @@ async function main() {
                 heading: `Memory #${index + 1}`,
                 text: `Content for memory ${index + 1}`,
                 mediaId: null,
+                mediaPositionX: 50,
+                mediaPositionY: 50,
+                mediaScale: 1,
               },
             ],
           };

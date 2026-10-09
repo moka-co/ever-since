@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import pino from "pino";
-import { secretSchema, createDefaultDb } from "../lib/storage/schema.ts";
+import { secretSchema, dbSchema, createDefaultDb } from "../lib/storage/schema.ts";
 
 // Backend stdout logger (JSON to backend stdout, not sent to eversince.logs file)
 const backendLogger = pino({
@@ -19,15 +19,16 @@ const DB_PATH = resolve(process.cwd(), "data", "db.json");
 let db;
 if (existsSync(DB_PATH)) {
   try {
-    db = JSON.parse(readFileSync(DB_PATH, "utf8"));
+    const raw = JSON.parse(readFileSync(DB_PATH, "utf8"));
+    raw.secret = validatedSecret;
+    // Validates against dbSchema, automatically populating non-optional defaults (e.g. mediaPositionX/Y, mediaScale)
+    db = dbSchema.parse(raw);
   } catch {
     db = createDefaultDb(validatedSecret);
   }
 } else {
   db = createDefaultDb(validatedSecret);
 }
-
-db.secret = validatedSecret;
 
 mkdirSync(dirname(DB_PATH), { recursive: true });
 writeFileSync(DB_PATH, JSON.stringify(db, null, 2), "utf8");
