@@ -319,10 +319,13 @@ export default function MemoriesManager({
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        setErrorMessage(data.error || 'Failed to save memory.');
+        setErrorMessage(
+          data.error ||
+            `Could not ${editingId ? 'update' : 'create'} the memory (server responded with status ${response.status}).`
+        );
         return;
       }
 

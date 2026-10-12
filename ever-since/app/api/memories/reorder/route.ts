@@ -53,6 +53,6 @@ export async function PUT(request: Request) {
       { status: 200 }
     );
   } catch (error) {
-    return errorResponse(error, 'API /api/memories/reorder PUT');
+    return errorResponse(error, 'API /api/memories/reorder PUT', 'reorder the memories');
   }
 }

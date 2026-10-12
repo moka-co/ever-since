@@ -52,6 +52,7 @@ ever-since/
     │   │   │   ├── use-config-save.ts
     │   │   │   └── use-media-upload.ts
     │   │   ├── media/
+    │   │   │   ├── media-library.ts   # Server-safe pure helpers (no 'use client')
     │   │   │   ├── media-manager.tsx
     │   │   │   ├── media-picker.tsx
     │   │   │   └── media-thumbnail.tsx

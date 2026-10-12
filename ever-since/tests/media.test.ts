@@ -661,7 +661,7 @@ runTestSuite('Media Constraints & Operations', async ({ harness, temp }) => {
       // Test 18: Single-pass partitionMediaLibrary and Set-based collectUsedMediaIds
       console.log('\nTest 18: Single-pass partitionMediaLibrary and Set-based collectUsedMediaIds');
       const { partitionMediaLibrary, collectUsedMediaIds } = await import(
-        '../app/customize/media/media-manager'
+        '../app/customize/media/media-library'
       );
 
       let filenameReads = 0;

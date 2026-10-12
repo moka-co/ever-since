@@ -48,7 +48,7 @@ export async function PUT(request: Request, context: RouteContext) {
       { status: 200 }
     );
   } catch (error) {
-    return errorResponse(error, 'API /api/memories/[id] PUT');
+    return errorResponse(error, 'API /api/memories/[id] PUT', 'update the memory');
   }
 }
 
@@ -87,6 +87,6 @@ export async function DELETE(request: Request, context: RouteContext) {
       { status: 200 }
     );
   } catch (error) {
-    return errorResponse(error, 'API /api/memories/[id] DELETE');
+    return errorResponse(error, 'API /api/memories/[id] DELETE', 'delete the memory');
   }
 }

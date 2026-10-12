@@ -101,7 +101,7 @@ export async function GET(request: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Media file not found on disk' }, { status: 404 });
     }
   } catch (error) {
-    return errorResponse(error, 'API /api/media/[id] GET');
+    return errorResponse(error, 'API /api/media/[id] GET', 'load the media file');
   }
 }
 
@@ -153,6 +153,6 @@ export async function DELETE(request: Request, context: RouteContext) {
       { status: 200 }
     );
   } catch (error) {
-    return errorResponse(error, 'API /api/media/[id] DELETE');
+    return errorResponse(error, 'API /api/media/[id] DELETE', 'delete the media file');
   }
 }

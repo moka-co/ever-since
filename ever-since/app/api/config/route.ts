@@ -18,7 +18,7 @@ export async function GET() {
       { status: 200 }
     );
   } catch (error) {
-    return errorResponse(error, 'API /api/config GET');
+    return errorResponse(error, 'API /api/config GET', 'load the settings');
   }
 }
 
@@ -80,6 +80,6 @@ export async function PUT(request: Request) {
       { status: 200 }
     );
   } catch (error) {
-    return errorResponse(error, 'API /api/config PUT');
+    return errorResponse(error, 'API /api/config PUT', 'save the settings');
   }
 }

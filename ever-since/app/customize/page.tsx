@@ -3,7 +3,8 @@ import { readDb } from '@/lib/storage/db';
 import { reconcileMediaLibrary } from '@/lib/media/sync';
 import ConfigForm from './settings/config-form';
 import SealPhotoManager from './settings/seal-photo-manager';
-import MediaManager, { collectUsedMediaIds } from './media/media-manager';
+import MediaManager from './media/media-manager';
+import { collectUsedMediaIds } from './media/media-library';
 import MemoriesManager from './memories/memories-manager';
 import CustomizeTabs from './ui/customize-tabs';
 

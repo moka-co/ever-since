@@ -17,7 +17,7 @@ export async function GET() {
     const db = await readDb();
     return NextResponse.json(db.memories, { status: 200 });
   } catch (error) {
-    return errorResponse(error, 'API /api/memories GET');
+    return errorResponse(error, 'API /api/memories GET', 'load the memories');
   }
 }
 
@@ -59,6 +59,6 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (error) {
-    return errorResponse(error, 'API /api/memories POST');
+    return errorResponse(error, 'API /api/memories POST', 'create the memory');
   }
 }

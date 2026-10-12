@@ -3,43 +3,12 @@
 import { useState, useRef, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { MediaRecord } from '@/lib/storage/schema';
-import { MAX_MEDIA_COUNT, isVideo } from '@/lib/media/validation';
+import { MAX_MEDIA_COUNT } from '@/lib/media/validation';
 import { Skeleton } from '@/components/ui/skeleton';
 import Alert from '../ui/alert';
 import MediaThumbnail from './media-thumbnail';
+import { partitionMediaLibrary } from './media-library';
 import { appendUniqueMedia, useMediaUpload } from '../hooks/use-media-upload';
-
-export function partitionMediaLibrary(mediaList: MediaRecord[]): {
-  photos: MediaRecord[];
-  videos: MediaRecord[];
-} {
-  const photos: MediaRecord[] = [];
-  const videos: MediaRecord[] = [];
-  for (const item of mediaList) {
-    if (isVideo(item.filename)) {
-      videos.push(item);
-    } else {
-      photos.push(item);
-    }
-  }
-  return { photos, videos };
-}
-
-export function collectUsedMediaIds(
-  memories: { mediaId?: string | null }[],
-  sealMediaId?: string | null
-): Set<string> {
-  const used = new Set<string>();
-  for (const memory of memories) {
-    if (memory.mediaId) {
-      used.add(memory.mediaId);
-    }
-  }
-  if (sealMediaId) {
-    used.add(sealMediaId);
-  }
-  return used;
-}
 
 interface MediaManagerProps {
   initialMedia: MediaRecord[];
