@@ -14,3 +14,5 @@ EverSince we met, a romantic web experience made for couples recurrences like an
 - Design, UI, UX, typography, colors, aesthetic - `docs/design.md`
 - Testing, Test Case, pitfalls to avoid - `docs/testing.md`
 - Next.JS docs https://nextjs.org/docs
+- Diagrams: - `docs/diagrams` - diagrams made with design-diagram skills
+- README: `README.md` contains the app as it should be presented to the public: developers, recruiters, customers.

@@ -7,44 +7,52 @@ export interface SwipeHintProps {
   className?: string;
 }
 
+export function getSwipeHintMotionConfig(isReducedMotion?: boolean | null) {
+  if (isReducedMotion) {
+    return {
+      animate: {
+        opacity: [0, 0.9, 0.9, 0],
+      },
+      transition: {
+        duration: 1.8,
+        times: [0, 0.2, 0.8, 1],
+        ease: "easeInOut" as const,
+      },
+    };
+  }
+
+  return {
+    animate: {
+      x: [32, -32, 32, -32],
+      opacity: [0, 0.95, 0.95, 0, 0, 0.95, 0.95, 0],
+    },
+    transition: {
+      x: {
+        duration: 1.8,
+        times: [0, 0.45, 0.5, 0.95],
+        ease: ["easeOut", "linear", "easeOut", "linear"] as const,
+      },
+      opacity: {
+        duration: 1.8,
+        times: [0, 0.08, 0.38, 0.48, 0.52, 0.6, 0.88, 0.98],
+      },
+    },
+  };
+}
+
 export function SwipeHint({ isReducedMotion = false, className = "" }: SwipeHintProps) {
+  const motionConfig = getSwipeHintMotionConfig(isReducedMotion);
+
   return (
     <motion.div
       aria-hidden="true"
       initial={{ opacity: 0 }}
-      animate={
-        isReducedMotion
-          ? {
-              opacity: [0, 0.9, 0.9, 0],
-            }
-          : {
-              x: [32, -32, 32, -32],
-              opacity: [0, 0.95, 0.95, 0, 0, 0.95, 0.95, 0],
-            }
-      }
+      animate={motionConfig.animate}
       exit={{
         opacity: 0,
         transition: { duration: 0.15, ease: "easeOut" },
       }}
-      transition={
-        isReducedMotion
-          ? {
-              duration: 1.8,
-              times: [0, 0.2, 0.8, 1],
-              ease: "easeInOut",
-            }
-          : {
-              x: {
-                duration: 1.8,
-                times: [0, 0.45, 0.5, 0.95],
-                ease: ["easeOut", "linear", "easeOut", "linear"],
-              },
-              opacity: {
-                duration: 1.8,
-                times: [0, 0.08, 0.38, 0.48, 0.52, 0.6, 0.88, 0.98],
-              },
-            }
-      }
+      transition={motionConfig.transition}
       className={`pointer-events-none absolute bottom-16 sm:bottom-20 left-1/2 -translate-x-1/2 z-20 flex items-center justify-center select-none ${className}`}
     >
       {/* Frosted floating capsule with subtle trail and hand swipe icon */}

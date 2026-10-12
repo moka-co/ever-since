@@ -80,6 +80,21 @@ export function checkIsTouchMobile({
   return isCoarsePointer && isSmallViewport;
 }
 
+/**
+ * Evaluate whether the card peek animation should play
+ */
+export function shouldPlayCardPeek({
+  isHintActive,
+  isReducedMotion,
+  isValentine,
+}: {
+  isHintActive: boolean;
+  isReducedMotion?: boolean | null;
+  isValentine: boolean;
+}): boolean {
+  return isHintActive && !isReducedMotion && !isValentine;
+}
+
 export interface StateMachineConfig {
   delayMs?: number;
   repeatDelayMs?: number;
@@ -156,6 +171,13 @@ export class SwipeHintStateMachine {
     return getSessionShowCount(this.sessionStorage);
   }
 
+  public getRemainingTimeMs(): number | null {
+    if (this.phase === "dismissed" || this.phase === "exhausted" || this.phase === "idle") {
+      return null;
+    }
+    return Math.max(0, this.targetTimestamp - this.now());
+  }
+
   public handleUserInteraction(): void {
     if (this.phase === "dismissed" || this.phase === "exhausted") return;
 
@@ -221,7 +243,6 @@ export interface UseSwipeHintOptions {
 export interface UseSwipeHintReturn {
   isHintActive: boolean;
   dismissPermanently: () => void;
-  resetInactivity: () => void;
 }
 
 const INTERACTION_EVENTS: Array<keyof WindowEventMap> = [
@@ -242,40 +263,31 @@ export function useSwipeHint({
 }: UseSwipeHintOptions): UseSwipeHintReturn {
   const [isTouchMobile, setIsTouchMobile] = useState(false);
   const [isHintActive, setIsHintActive] = useState(false);
-  const dismissedRef = useRef(false);
+  const machineRef = useRef<SwipeHintStateMachine | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const cycleTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const repeatTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const clearAllTimers = useCallback(() => {
-    if (inactivityTimerRef.current) {
-      clearTimeout(inactivityTimerRef.current);
-      inactivityTimerRef.current = null;
-    }
-    if (cycleTimerRef.current) {
-      clearTimeout(cycleTimerRef.current);
-      cycleTimerRef.current = null;
-    }
-    if (repeatTimerRef.current) {
-      clearTimeout(repeatTimerRef.current);
-      repeatTimerRef.current = null;
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
     }
   }, []);
 
   const dismissPermanently = useCallback(() => {
-    dismissSwipeHintPermanently();
-    dismissedRef.current = true;
+    if (machineRef.current) {
+      machineRef.current.dismissPermanently();
+    } else {
+      dismissSwipeHintPermanently();
+    }
     setIsHintActive(false);
-    clearAllTimers();
-  }, [clearAllTimers]);
+    clearTimer();
+  }, [clearTimer]);
 
   // Check touch and mobile viewport strictly client-side to prevent hydration mismatches
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     if (isSwipeHintDismissed()) {
-      dismissedRef.current = true;
       return;
     }
 
@@ -301,71 +313,57 @@ export function useSwipeHint({
     };
   }, []);
 
-  // Main inactivity timer and lifecycle coordinator
+  // Adapter lifecycle around SwipeHintStateMachine
   useEffect(() => {
-    if (
-      !enabled ||
-      !isTouchMobile ||
-      dismissedRef.current ||
-      isSwipeHintDismissed() ||
-      hasReachedSessionLimit(undefined, maxShowsPerSession)
-    ) {
-      clearAllTimers();
+    if (!enabled || !isTouchMobile) {
+      clearTimer();
+      machineRef.current = null;
       return;
     }
 
-    const triggerCycle = () => {
-      if (hasReachedSessionLimit(undefined, maxShowsPerSession)) {
-        setIsHintActive(false);
-        clearAllTimers();
-        return;
-      }
+    const machine = new SwipeHintStateMachine({
+      delayMs,
+      repeatDelayMs,
+      cycleDurationMs,
+      maxShows: maxShowsPerSession,
+    });
+    machineRef.current = machine;
 
-      incrementSessionShowCount();
-      setIsHintActive(true);
+    if (machine.getRemainingTimeMs() === null) {
+      return () => {
+        clearTimer();
+        machineRef.current = null;
+      };
+    }
 
-      // Play 2 cycles (~1800ms) then pause
-      cycleTimerRef.current = setTimeout(() => {
-        setIsHintActive(false);
+    const scheduleNext = () => {
+      clearTimer();
+      const remaining = machine.getRemainingTimeMs();
+      if (remaining === null) return;
 
-        // If below max shows, schedule next show after repeatDelay
-        if (!hasReachedSessionLimit(undefined, maxShowsPerSession)) {
-          repeatTimerRef.current = setTimeout(() => {
-            triggerCycle();
-          }, repeatDelayMs);
-        }
-      }, cycleDurationMs);
-    };
-
-    const startInactivityTimer = () => {
-      clearAllTimers();
-      setIsHintActive(false);
-
-      if (hasReachedSessionLimit(undefined, maxShowsPerSession)) {
-        return;
-      }
-
-      inactivityTimerRef.current = setTimeout(() => {
-        triggerCycle();
-      }, delayMs);
+      timerRef.current = setTimeout(() => {
+        machine.tick();
+        setIsHintActive(machine.isActive());
+        scheduleNext();
+      }, remaining);
     };
 
     const onUserInteraction = () => {
-      // Immediate fast fade out on interaction
-      setIsHintActive(false);
-      startInactivityTimer();
+      machine.handleUserInteraction();
+      setIsHintActive(machine.isActive());
+      scheduleNext();
     };
 
-    // Attach interaction listeners to window
     INTERACTION_EVENTS.forEach((event) => {
       window.addEventListener(event, onUserInteraction, { passive: true });
     });
 
-    // Start initial inactivity timer
-    startInactivityTimer();
+    scheduleNext();
 
     return () => {
-      clearAllTimers();
+      clearTimer();
+      machineRef.current = null;
+      setIsHintActive(false);
       INTERACTION_EVENTS.forEach((event) => {
         window.removeEventListener(event, onUserInteraction);
       });
@@ -377,34 +375,11 @@ export function useSwipeHint({
     repeatDelayMs,
     cycleDurationMs,
     maxShowsPerSession,
-    clearAllTimers,
-  ]);
-
-  const resetInactivity = useCallback(() => {
-    if (!enabled || !isTouchMobile || dismissedRef.current || isSwipeHintDismissed()) return;
-    setIsHintActive(false);
-    clearAllTimers();
-    if (!hasReachedSessionLimit(undefined, maxShowsPerSession)) {
-      inactivityTimerRef.current = setTimeout(() => {
-        incrementSessionShowCount();
-        setIsHintActive(true);
-        cycleTimerRef.current = setTimeout(() => {
-          setIsHintActive(false);
-        }, cycleDurationMs);
-      }, delayMs);
-    }
-  }, [
-    enabled,
-    isTouchMobile,
-    maxShowsPerSession,
-    delayMs,
-    cycleDurationMs,
-    clearAllTimers,
+    clearTimer,
   ]);
 
   return {
     isHintActive,
     dismissPermanently,
-    resetInactivity,
   };
 }

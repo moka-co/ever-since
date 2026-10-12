@@ -5,3 +5,4 @@ banned_ip.log
 docs/superpowers
 docs/deployment-steps.md
 *.tar.gz
+docs/review/*

@@ -13,8 +13,10 @@ async function main() {
     incrementSessionShowCount,
     hasReachedSessionLimit,
     checkIsTouchMobile,
+    shouldPlayCardPeek,
     SwipeHintStateMachine,
   } = await import('../lib/hooks/use-swipe-hint');
+  const { getSwipeHintMotionConfig } = await import('../components/swipe-hint');
 
   // Mock in-memory localStorage and sessionStorage for hermetic testing
   const mockStorage = () => {
@@ -128,9 +130,9 @@ async function main() {
     );
   }
 
-  // Test 4: State Machine timing & reset behavior
+  // Test 4: State Machine timing, interaction during a cycle, 6s pauses, and 3-show limit
   {
-    console.log('\nTest 4: State Machine timing & reset behavior');
+    console.log('\nTest 4: State Machine timing, interaction during a cycle, 6s pauses, and 3-show limit');
     fakeLocalStorage.clear();
     fakeSessionStorage.clear();
 
@@ -148,71 +150,160 @@ async function main() {
     });
 
     harness.assert(!machine.isActive(), 'Initial state is inactive');
+    harness.assert(machine.getRemainingTimeMs() === 4000, 'Initial remaining time is 4000ms');
 
-    // Advance 3000ms: still inactive
-    currentTime += 3000;
+    // Advance 3999ms: still inactive, 1ms remaining
+    currentTime += 3999;
     machine.tick();
-    harness.assert(!machine.isActive(), 'Still inactive after 3s');
+    harness.assert(!machine.isActive(), 'Still inactive at 3999ms');
+    harness.assert(machine.getRemainingTimeMs() === 1, '1ms remaining before initial 4s delay');
 
     // Advance to 4000ms: activates show 1
-    currentTime += 1000;
+    currentTime += 1;
     machine.tick();
     harness.assert(machine.isActive(), 'Activates at 4000ms delay');
     harness.assert(machine.getShowCount() === 1, 'First show registered');
+    harness.assert(machine.getRemainingTimeMs() === 1800, 'Remaining cycle duration is 1800ms');
 
-    // Advance 1800ms (2 cycles complete): pauses
+    // Advance 1800ms (2 cycles complete): pauses for 6s repeat delay
     currentTime += 1800;
     machine.tick();
     harness.assert(!machine.isActive(), 'Pauses after 2 cycles (1800ms)');
+    harness.assert(machine.getRemainingTimeMs() === 6000, 'Remaining repeat pause is 6000ms');
 
-    // Advance 6000ms (repeat delay): activates show 2
-    currentTime += 6000;
+    // Advance 5999ms of the 6000ms pause: still inactive
+    currentTime += 5999;
+    machine.tick();
+    harness.assert(!machine.isActive(), 'Still paused at 5999ms of 6s repeat delay');
+    harness.assert(machine.getRemainingTimeMs() === 1, '1ms remaining in 6s repeat pause');
+
+    // Advance 1ms (total 6000ms repeat delay): activates show 2
+    currentTime += 1;
     machine.tick();
     harness.assert(machine.isActive(), 'Activates show 2 after 6s repeat delay');
     harness.assert(machine.getShowCount() === 2, 'Second show registered');
+    harness.assert(machine.getRemainingTimeMs() === 1800, 'Show 2 cycle duration is 1800ms');
 
-    // User interaction: immediately resets and hides hint
-    machine.handleUserInteraction();
-    harness.assert(!machine.isActive(), 'User interaction immediately deactivates hint');
-
-    // After interaction, inactivity timer restarts: advance 3999ms -> inactive
-    currentTime += 3999;
+    // Advance 500ms into the active 1800ms cycle, then trigger user interaction
+    currentTime += 500;
     machine.tick();
-    harness.assert(!machine.isActive(), 'Inactive before new 4s elapses');
+    harness.assert(machine.isActive(), 'Still active 500ms into show 2 cycle');
+    harness.assert(machine.getRemainingTimeMs() === 1300, '1300ms left in show 2 cycle before interaction');
 
+    machine.handleUserInteraction();
+    harness.assert(!machine.isActive(), 'User interaction mid-cycle immediately deactivates hint');
+    harness.assert(machine.getRemainingTimeMs() === 4000, 'Interaction resets timer to full 4000ms inactivity delay');
+
+    // Advance 1300ms (where old cycle would have ended) -> still waiting
+    currentTime += 1300;
+    machine.tick();
+    harness.assert(!machine.isActive(), 'Does not change state at old cycle boundary');
+    harness.assert(machine.getRemainingTimeMs() === 2700, '2700ms remaining in restarted 4s inactivity delay');
+
+    // Advance 2699ms (total 3999ms since interaction) -> still inactive
+    currentTime += 2699;
+    machine.tick();
+    harness.assert(!machine.isActive(), 'Inactive 3999ms after interaction');
+
+    // Advance 1ms (total 4000ms since interaction) -> activates show 3
     currentTime += 1;
     machine.tick();
     harness.assert(machine.isActive(), 'Activates show 3 after 4s inactivity');
     harness.assert(machine.getShowCount() === 3, 'Third show registered');
 
-    // Finish 2 cycles
+    // Finish 2 cycles (1800ms) -> reaches max 3 shows and exhausts
     currentTime += 1800;
     machine.tick();
     harness.assert(!machine.isActive(), 'Show 3 paused after 2 cycles');
+    harness.assert(machine.getRemainingTimeMs() === null, 'No further timer scheduled once 3-show limit is reached');
 
-    // Wait 6000ms repeat: should NOT activate because maxShows (3) reached!
+    // Wait 6000ms repeat and interact: should NOT activate because maxShows (3) reached!
     currentTime += 6000;
     machine.tick();
     harness.assert(!machine.isActive(), 'Does not activate after reaching max 3 shows');
+    machine.handleUserInteraction();
+    harness.assert(machine.getRemainingTimeMs() === null, 'Interaction when exhausted does not restart timer');
+
+    // New machine in same session starts exhausted immediately
+    const machineSameSession = new SwipeHintStateMachine({
+      delayMs: 4000,
+      maxShows: 3,
+      localStorage: fakeLocalStorage as unknown as Storage,
+      sessionStorage: fakeSessionStorage as unknown as Storage,
+      now: timeProvider,
+    });
+    harness.assert(!machineSameSession.isActive(), 'New machine in exhausted session is inactive');
+    harness.assert(machineSameSession.getRemainingTimeMs() === null, 'New machine in exhausted session schedules no timer');
   }
 
-  // Test 5: Permanent dismissal disables machine
+  // Test 5: Permanent dismissal disables machine and persists across instances
   {
-    console.log('\nTest 5: Permanent dismissal disables machine');
+    console.log('\nTest 5: Permanent dismissal disables machine and persists across instances');
     fakeLocalStorage.clear();
     fakeSessionStorage.clear();
 
+    let currentTime = 1000;
     const machine = new SwipeHintStateMachine({
       delayMs: 4000,
       localStorage: fakeLocalStorage as unknown as Storage,
       sessionStorage: fakeSessionStorage as unknown as Storage,
+      now: () => currentTime,
     });
 
     machine.dismissPermanently();
     harness.assert(machine.isDismissed(), 'Machine reports dismissed');
     harness.assert(!machine.isActive(), 'Machine is inactive');
+    harness.assert(machine.getRemainingTimeMs() === null, 'Dismissed machine schedules no timer');
+    currentTime += 5000;
     machine.tick();
     harness.assert(!machine.isActive(), 'Ticking dismissed machine does not activate');
+
+    const nextMachine = new SwipeHintStateMachine({
+      delayMs: 4000,
+      localStorage: fakeLocalStorage as unknown as Storage,
+      sessionStorage: fakeSessionStorage as unknown as Storage,
+      now: () => currentTime,
+    });
+    harness.assert(nextMachine.isDismissed(), 'Subsequent machine reads persisted dismissal from localStorage');
+    harness.assert(nextMachine.getRemainingTimeMs() === null, 'Subsequent dismissed machine schedules no timer');
+  }
+
+  // Test 6: Reduced motion configuration for capsule and card peek
+  {
+    console.log('\nTest 6: Reduced motion configuration for capsule and card peek');
+
+    const normalConfig = getSwipeHintMotionConfig(false);
+    harness.assert(
+      'x' in normalConfig.animate && Array.isArray(normalConfig.animate.x),
+      'Normal motion includes horizontal x keyframes on SwipeHint capsule'
+    );
+
+    const reducedConfig = getSwipeHintMotionConfig(true);
+    harness.assert(
+      !('x' in reducedConfig.animate),
+      'Reduced motion omits horizontal x translation on SwipeHint capsule'
+    );
+    harness.assert(
+      JSON.stringify(reducedConfig.animate.opacity) === JSON.stringify([0, 0.9, 0.9, 0]),
+      'Reduced motion uses gentle static opacity fade [0, 0.9, 0.9, 0]'
+    );
+
+    harness.assert(
+      shouldPlayCardPeek({ isHintActive: true, isReducedMotion: false, isValentine: false }),
+      'Card peek plays when hint is active, motion is normal, and card is standard'
+    );
+    harness.assert(
+      !shouldPlayCardPeek({ isHintActive: true, isReducedMotion: true, isValentine: false }),
+      'Card peek is disabled when prefers-reduced-motion is active'
+    );
+    harness.assert(
+      !shouldPlayCardPeek({ isHintActive: true, isReducedMotion: false, isValentine: true }),
+      'Card peek is disabled on valentine cards'
+    );
+    harness.assert(
+      !shouldPlayCardPeek({ isHintActive: false, isReducedMotion: false, isValentine: false }),
+      'Card peek is disabled when hint is inactive'
+    );
   }
 
   harness.finish('Swipe Hint Verification');

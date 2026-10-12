@@ -117,6 +117,181 @@ async function main() {
       harness.assert(resetData.config.sealMediaId === null, 'sealMediaId reset to null');
     }
 
+    // Test 4c: Shared ConfigSaveController & SaveSubmitButton (independent saves, API & network errors, disabled during submission)
+    {
+      console.log('\nTest 4c: Shared ConfigSaveController & SaveSubmitButton');
+      const {
+        ConfigSaveController,
+        SAVE_FEEDBACK_DURATION_MS,
+        NETWORK_ERROR_MESSAGE,
+      } = await import('../app/customize/use-config-save');
+      const { getSaveSubmitButtonState } = await import('../app/customize/save-submit-button');
+
+      harness.assert(
+        SAVE_FEEDBACK_DURATION_MS === 2500,
+        'Saved feedback timer duration is 2500ms'
+      );
+
+      let dateRefreshed = 0;
+      let sealRefreshed = 0;
+
+      // Route-backed fetch stub with controllable deferred resolution to inspect in-flight state
+      let resolveInFlight: (() => void) | null = null;
+      const routeFetch: typeof fetch = async (input, init) => {
+        if (resolveInFlight) {
+          await new Promise<void>((r) => {
+            resolveInFlight = r;
+          });
+        }
+        const req = new Request('http://localhost:3000/api/config', {
+          method: init?.method || 'PUT',
+          headers: init?.headers,
+          body: init?.body,
+        });
+        return await putConfig(req);
+      };
+
+      const dateSaver = new ConfigSaveController({
+        fallbackErrorMessage: 'Failed to update anniversary date.',
+        fetchImpl: routeFetch,
+        onRefresh: () => {
+          dateRefreshed += 1;
+        },
+      });
+      const sealSaver = new ConfigSaveController({
+        fallbackErrorMessage: 'Failed to update login photo/meme.',
+        fetchImpl: routeFetch,
+        onRefresh: () => {
+          sealRefreshed += 1;
+        },
+      });
+
+      // 1. Verify idle button states and independence
+      const initialDateBtn = getSaveSubmitButtonState({
+        ...dateSaver.getState(),
+        idleLabel: 'Save Date',
+        size: 'md',
+      });
+      const initialSealBtn = getSaveSubmitButtonState({
+        ...sealSaver.getState(),
+        idleLabel: 'Save Photo',
+        size: 'sm',
+      });
+      harness.assert(
+        !initialDateBtn.disabled && initialDateBtn.label === 'Save Date',
+        'Idle date button enabled with "Save Date"'
+      );
+      harness.assert(
+        !initialSealBtn.disabled && initialSealBtn.label === 'Save Photo',
+        'Idle photo button enabled with "Save Photo"'
+      );
+
+      // 2. Verify in-flight submission disables only the submitting form's button
+      resolveInFlight = () => {};
+      const pendingDatePromise = dateSaver.submit({ anniversaryDate: '2026-02-14' });
+      const savingDateBtn = getSaveSubmitButtonState({
+        ...dateSaver.getState(),
+        idleLabel: 'Save Date',
+        size: 'md',
+      });
+      const untouchedSealBtn = getSaveSubmitButtonState({
+        ...sealSaver.getState(),
+        idleLabel: 'Save Photo',
+        size: 'sm',
+      });
+      harness.assert(
+        dateSaver.getState().isSaving &&
+          savingDateBtn.disabled &&
+          savingDateBtn.label === 'Saving...',
+        'Date button is disabled and shows "Saving..." during submission'
+      );
+      harness.assert(
+        !sealSaver.getState().isSaving && !untouchedSealBtn.disabled,
+        'First Photo form remains independent and enabled while Anniversary Date saves'
+      );
+
+      // Complete in-flight request
+      const unblock = resolveInFlight as () => void;
+      resolveInFlight = null;
+      unblock();
+      const dateOk = await pendingDatePromise;
+      harness.assert(dateOk === true, 'Date save succeeded');
+      harness.assert(
+        dateSaver.getState().isSaved && !dateSaver.getState().isSaving,
+        'Date saver transitions to isSaved=true and isSaving=false'
+      );
+      harness.assert(dateRefreshed === 1 && sealRefreshed === 0, 'Only date saver triggered refresh');
+
+      const savedDateBtn = getSaveSubmitButtonState({
+        ...dateSaver.getState(),
+        idleLabel: 'Save Date',
+        size: 'md',
+      });
+      harness.assert(
+        !savedDateBtn.disabled && savedDateBtn.label === '✓ Saved!',
+        'Saved button re-enables and displays "✓ Saved!"'
+      );
+
+      // 3. Independent save of sealMediaId preserves anniversaryDate in DB
+      const sealOk = await sealSaver.submit({ sealMediaId: 'seal-test-1' });
+      harness.assert(sealOk === true && sealSaver.getState().isSaved, 'Seal photo save succeeded independently');
+      const dbAfterBoth = await readDb();
+      harness.assert(
+        dbAfterBoth.config.anniversaryDate === '2026-02-14' &&
+          dbAfterBoth.config.sealMediaId === 'seal-test-1',
+        'Independent saves persisted both anniversaryDate and sealMediaId without overwriting each other'
+      );
+
+      // Reset anniversaryDate back to empty string for subsequent tests
+      await dateSaver.submit({ anniversaryDate: '' });
+      await sealSaver.submit({ sealMediaId: null });
+
+      // 4. API error handling (e.g. non-existent sealMediaId or invalid date)
+      const apiFailOk = await sealSaver.submit({ sealMediaId: 'missing-media' });
+      harness.assert(apiFailOk === false, 'API error returns false');
+      harness.assert(
+        !sealSaver.getState().isSaving &&
+          !sealSaver.getState().isSaved &&
+          sealSaver.getState().errorMessage === "Media with ID 'missing-media' not found",
+        'API error populates errorMessage and clears isSaved/isSaving'
+      );
+
+      // 5. Fallback error message when API returns empty error body
+      const emptyErrorSaver = new ConfigSaveController({
+        fallbackErrorMessage: 'Failed to update login photo/meme.',
+        fetchImpl: async () =>
+          new Response(JSON.stringify({}), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+      });
+      await emptyErrorSaver.submit({ sealMediaId: null });
+      harness.assert(
+        emptyErrorSaver.getState().errorMessage === 'Failed to update login photo/meme.',
+        'Uses field-specific fallbackErrorMessage when response has no error string'
+      );
+
+      // 6. Network error handling
+      const networkErrorSaver = new ConfigSaveController({
+        fallbackErrorMessage: 'Failed to update anniversary date.',
+        fetchImpl: async () => {
+          throw new Error('Offline');
+        },
+      });
+      const netOk = await networkErrorSaver.submit({ anniversaryDate: '2025-10-15' });
+      harness.assert(
+        netOk === false &&
+          !networkErrorSaver.getState().isSaving &&
+          networkErrorSaver.getState().errorMessage === NETWORK_ERROR_MESSAGE,
+        'Network failure sets standard network error message and re-enables form'
+      );
+      networkErrorSaver.clearError();
+      harness.assert(
+        networkErrorSaver.getState().errorMessage === null,
+        'clearError resets errorMessage to null'
+      );
+    }
+
     // Test 5: Memories POST & GET
     let createdMemoryId1 = '';
     let createdMemoryId2 = '';

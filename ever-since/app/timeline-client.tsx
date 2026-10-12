@@ -4,8 +4,9 @@ import { motion, PanInfo, AnimatePresence, MotionConfig, useReducedMotion } from
 import type { MemoryRecord, MediaRecord } from "@/lib/storage/schema";
 import { isVideo } from "@/lib/media/validation";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSwipeHint } from "@/lib/hooks/use-swipe-hint";
+import { useSwipeHint, shouldPlayCardPeek } from "@/lib/hooks/use-swipe-hint";
 import SwipeHint from "@/components/swipe-hint";
+import ValentineMemory from "@/components/valentine-memory";
 
 interface TimelineClientProps {
   memories: MemoryRecord[];
@@ -20,13 +21,16 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
   const [showRewindHint, setShowRewindHint] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
+  const [resolvedValentineIds, setResolvedValentineIds] = useState<Set<string>>(new Set());
   const videoRef = useRef<HTMLVideoElement>(null);
   const rewindTimeout = useRef<NodeJS.Timeout | null>(null);
   const rewindHintTimeout = useRef<NodeJS.Timeout | null>(null);
   const pointerDownTime = useRef<number>(0);
   const shouldReduceMotion = useReducedMotion();
+  const isFirstCardUnresolvedValentine =
+    memories[0]?.type === "valentine" && !resolvedValentineIds.has(memories[0].id);
   const { isHintActive, dismissPermanently } = useSwipeHint({
-    enabled: currentIndex === 0 && memories.length > 1,
+    enabled: currentIndex === 0 && memories.length > 1 && !isFirstCardUnresolvedValentine,
   });
 
   // Permanently dismiss hint once user has advanced beyond the first card
@@ -190,12 +194,28 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
   };
 
   const activeMemory = memories[currentIndex];
+  const isValentine = activeMemory?.type === "valentine";
+  const isUnresolvedValentine =
+    isValentine && activeMemory ? !resolvedValentineIds.has(activeMemory.id) : false;
   const activeMedia = activeMemory?.mediaId ? media.find((m) => m.id === activeMemory.mediaId) : null;
   const remainingCards = Math.max(0, memories.length - 1 - currentIndex);
-  const showBackCard1 = remainingCards >= 1;
-  const showBackCard2 = remainingCards >= 2;
+  const showBackCard1 = !isValentine && remainingCards >= 1;
+  const showBackCard2 = !isValentine && remainingCards >= 2;
   const isOddCard = currentIndex % 2 === 1;
   const mediaSrc = activeMedia ? `/api/media/${activeMedia.filename}` : '';
+
+  const handleValentineYes = () => {
+    if (activeMemory) {
+      setResolvedValentineIds((prev) => {
+        const next = new Set(prev);
+        next.add(activeMemory.id);
+        return next;
+      });
+    }
+    if (currentIndex < memories.length - 1) {
+      handleNext();
+    }
+  };
 
   if (memories.length === 0) {
     return (
@@ -273,17 +293,18 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
             <motion.article
               key={currentIndex}
               custom={direction}
-              drag="x"
+              drag={isValentine ? false : "x"}
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.2}
-              onDragEnd={handleDragEnd}
+              onDragEnd={isValentine ? undefined : handleDragEnd}
+              aria-hidden={isValentine ? "true" : undefined}
               variants={{
                 enter: (dir: number) => ({
                   opacity: 0,
                   x: shouldReduceMotion ? 0 : dir * 60,
                 }),
                 center: {
-                  opacity: 1,
+                  opacity: isValentine ? 0 : 1,
                   x: 0,
                 },
                 peek: {
@@ -300,7 +321,15 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
                 }),
               }}
               initial="enter"
-              animate={isHintActive && !shouldReduceMotion ? "peek" : "center"}
+              animate={
+                shouldPlayCardPeek({
+                  isHintActive,
+                  isReducedMotion: shouldReduceMotion,
+                  isValentine,
+                })
+                  ? "peek"
+                  : "center"
+              }
               exit="exit"
               transition={{
                 duration: shouldReduceMotion ? 0.15 : undefined,
@@ -308,7 +337,11 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
                 stiffness: 300,
                 damping: 30,
               }}
-              className="w-full rounded-[32px] sm:rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_10px_30px_rgba(255,150,170,0.18)] sm:shadow-[0_12px_40px_rgba(255,150,170,0.22)] overflow-hidden flex flex-col p-4 sm:p-5 cursor-grab active:cursor-grabbing select-none"
+              className={`w-full rounded-[32px] sm:rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_10px_30px_rgba(255,150,170,0.18)] sm:shadow-[0_12px_40px_rgba(255,150,170,0.22)] overflow-hidden flex flex-col p-4 sm:p-5 select-none ${
+                isValentine
+                  ? "opacity-0 pointer-events-none"
+                  : "cursor-grab active:cursor-grabbing"
+              }`}
             >
               {/* Media figure */}
               <figure className="relative w-full aspect-[4/5] rounded-[22px] sm:rounded-[26px] md:rounded-[28px] overflow-hidden bg-[#FAF7F8] flex items-center justify-center shrink-0 select-none [-webkit-touch-callout:none]">
@@ -420,22 +453,40 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
             </motion.article>
           </AnimatePresence>
 
+          {/* Special Valentine Memory Overlay */}
+          {isValentine && activeMemory && (
+            <ValentineMemory
+              key={`valentine-${activeMemory.id}-${currentIndex}`}
+              heading={activeMemory.heading}
+              config={activeMemory.config}
+              isReducedMotion={Boolean(shouldReduceMotion)}
+              isLastCard={currentIndex === memories.length - 1}
+              onYes={handleValentineYes}
+            />
+          )}
+
           {/* Swipe hint on first card */}
           <AnimatePresence>
-            {isHintActive && currentIndex === 0 && (
+            {isHintActive && currentIndex === 0 && !isValentine && (
               <SwipeHint isReducedMotion={shouldReduceMotion} />
             )}
           </AnimatePresence>
         </div>
 
       {/* Unified control toolbar directly below the card */}
-      <footer aria-label="Timeline navigation controls" className="flex items-center justify-center gap-4 mt-6 z-10">
+      <footer
+        aria-label="Timeline navigation controls"
+        aria-hidden={isUnresolvedValentine ? "true" : undefined}
+        className={`flex items-center justify-center gap-4 mt-6 z-10 transition-opacity duration-200 ${
+          isUnresolvedValentine ? "opacity-0 pointer-events-none" : "opacity-100"
+        }`}
+      >
         {/* Previous Button */}
         <button
           type="button"
           aria-label="Previous memory"
           onClick={handlePrev}
-          disabled={currentIndex === 0}
+          disabled={currentIndex === 0 || isUnresolvedValentine}
           className="w-12 h-12 rounded-full bg-white hover:bg-gray-50 text-[#4B5563] hover:text-foreground border border-[#F1E8EC] shadow-sm flex items-center justify-center transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
@@ -447,7 +498,7 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
             type="button"
             aria-label={isLiked ? "Liked" : "Like"}
             aria-pressed={isLiked}
-            disabled={isLiked}
+            disabled={isLiked || isUnresolvedValentine}
             onClick={handleLike}
             className="w-12 h-12 rounded-full bg-white hover:bg-gray-50 border border-[#F1E8EC] shadow-sm flex items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta select-none disabled:opacity-100 disabled:pointer-events-none disabled:hover:bg-white"
           >
@@ -494,10 +545,11 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
             <button
               type="button"
               aria-label="Rewind to beginning"
-              onPointerDown={handlePointerDown}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-              onPointerLeave={handlePointerUp}
+              disabled={isUnresolvedValentine}
+              onPointerDown={isUnresolvedValentine ? undefined : handlePointerDown}
+              onPointerUp={isUnresolvedValentine ? undefined : handlePointerUp}
+              onPointerCancel={isUnresolvedValentine ? undefined : handlePointerUp}
+              onPointerLeave={isUnresolvedValentine ? undefined : handlePointerUp}
               onContextMenu={(e) => e.preventDefault()}
               style={{ touchAction: 'none' }}
               className={`relative z-10 w-full h-full flex items-center justify-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta rounded-full select-none ${
@@ -515,7 +567,7 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
           type="button"
           aria-label="Next memory"
           onClick={handleNext}
-          disabled={currentIndex === memories.length - 1}
+          disabled={currentIndex === memories.length - 1 || isUnresolvedValentine}
           className="w-12 h-12 rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white shadow-[0_4px_16px_rgba(244,114,182,0.4)] hover:shadow-[0_6px_20px_rgba(244,114,182,0.55)] flex items-center justify-center transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta disabled:opacity-40 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 disabled:shadow-none disabled:cursor-not-allowed hover:scale-105 active:scale-95 disabled:hover:scale-100"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>

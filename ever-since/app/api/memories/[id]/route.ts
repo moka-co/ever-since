@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { updateDb } from '@/lib/storage/db';
 import { errorResponse } from '@/lib/api';
-import type { MemoryRecord } from '@/lib/storage/schema';
+import {
+  buildMemoryRecord,
+  type MemoryRecord,
+} from '@/lib/storage/schema';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -15,37 +18,14 @@ interface RouteContext {
 export async function PUT(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const body = await request.json().catch(() => ({}));
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     let updatedMemory: MemoryRecord | null = null;
 
     await updateDb((db) => {
       const existing = db.memories.find((m) => m.id === id);
       if (!existing) return db;
 
-      let mediaPositionX = existing.mediaPositionX ?? 50;
-      if (body.mediaPositionX !== undefined && typeof body.mediaPositionX === 'number') {
-        mediaPositionX = Math.max(0, Math.min(100, Math.round(body.mediaPositionX)));
-      }
-
-      let mediaPositionY = existing.mediaPositionY ?? 50;
-      if (body.mediaPositionY !== undefined && typeof body.mediaPositionY === 'number') {
-        mediaPositionY = Math.max(0, Math.min(100, Math.round(body.mediaPositionY)));
-      }
-
-      let mediaScale = existing.mediaScale ?? 1;
-      if (body.mediaScale !== undefined && typeof body.mediaScale === 'number') {
-        mediaScale = Math.max(1, Math.min(3, Math.round(body.mediaScale * 10) / 10));
-      }
-
-      updatedMemory = {
-        id: existing.id,
-        heading: body.heading !== undefined ? body.heading : existing.heading,
-        text: body.text !== undefined ? body.text : existing.text,
-        mediaId: body.mediaId !== undefined ? body.mediaId : existing.mediaId,
-        mediaPositionX,
-        mediaPositionY,
-        mediaScale,
-      };
+      updatedMemory = buildMemoryRecord(existing.id, body, existing);
 
       return {
         ...db,

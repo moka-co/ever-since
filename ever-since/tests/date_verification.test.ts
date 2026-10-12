@@ -23,16 +23,87 @@ async function main() {
       MAX_DATE_ATTEMPTS,
       DATE_COOLDOWN_SECONDS,
     } = await import('../lib/auth/date-lockout');
+    const {
+      parseCalendarDate,
+      isValidCalendarDate,
+    } = await import('../lib/auth/date-validation');
 
     const { updateDb } = await import('../lib/storage/db');
 
-    // Test 1: verifyDateMatch unit tests
+    // Test 1: Shared calendar date validator & verifyDateMatch unit tests
     {
-      console.log('\nTest 1: verifyDateMatch (Unit), when matching various date inputs');
+      console.log('\nTest 1: parseCalendarDate & verifyDateMatch (Unit), complete calendar validation');
       // Unconfigured date accepts any valid calendar date
       harness.assert(
         verifyDateMatch('14', '5', '2024', '') === true,
         'Empty configured date accepts valid date'
+      );
+      harness.assert(
+        verifyDateMatch('29', '2', '2024', '') === true,
+        'Empty configured date accepts Feb 29 on leap year (2024)'
+      );
+      harness.assert(
+        verifyDateMatch('29', '2', '2023', '') === false,
+        'Empty configured date rejects Feb 29 on non-leap year (2023)'
+      );
+      harness.assert(
+        verifyDateMatch('31', '4', '2024', '') === false,
+        'Empty configured date rejects day 31 in a 30-day month (April)'
+      );
+      harness.assert(
+        verifyDateMatch('', '5', '2024', '') === false,
+        'Empty configured date rejects empty day input'
+      );
+
+      // Pure calendar validator: February 29 leap year vs non-leap year
+      harness.assert(
+        parseCalendarDate('29', '2', '2024') === '2024-02-29' &&
+          isValidCalendarDate('29', '2', '2024') === true,
+        'Feb 29 in leap year 2024 is valid'
+      );
+      harness.assert(
+        parseCalendarDate('29', '02', '2000') === '2000-02-29',
+        'Feb 29 in century leap year 2000 is valid'
+      );
+      harness.assert(
+        parseCalendarDate('29', '2', '2023') === null &&
+          isValidCalendarDate('29', '2', '2023') === false,
+        'Feb 29 in non-leap year 2023 is rejected'
+      );
+      harness.assert(
+        parseCalendarDate('29', '2', '1900') === null,
+        'Feb 29 in non-leap century year 1900 is rejected'
+      );
+
+      // Day 31 in 30-day months vs 31-day months
+      for (const month30 of ['4', '06', '9', '11']) {
+        harness.assert(
+          parseCalendarDate('31', month30, '2024') === null &&
+            verifyDateMatch('31', month30, '2024', `2024-${month30.padStart(2, '0')}-31`) === false,
+          `Day 31 in 30-day month (${month30}) is rejected`
+        );
+        harness.assert(
+          parseCalendarDate('30', month30, '2024') === `2024-${month30.padStart(2, '0')}-30`,
+          `Day 30 in 30-day month (${month30}) is accepted`
+        );
+      }
+      harness.assert(
+        parseCalendarDate('31', '5', '2024') === '2024-05-31',
+        'Day 31 in 31-day month (May) is accepted'
+      );
+
+      // Empty and malformed inputs
+      harness.assert(
+        parseCalendarDate('', '05', '2024') === null &&
+          parseCalendarDate('14', '', '2024') === null &&
+          parseCalendarDate('14', '05', '') === null &&
+          parseCalendarDate('   ', '05', '2024') === null,
+        'Empty or whitespace inputs are rejected'
+      );
+      harness.assert(
+        parseCalendarDate('14a', '05', '2024') === null &&
+          parseCalendarDate('14', '5b', '2024') === null,
+        'Non-digit characters in day/month are rejected'
       );
 
       // Configured date matches exact date with padding

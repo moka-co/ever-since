@@ -1,4 +1,7 @@
 import 'server-only';
+import { parseCalendarDate, isValidCalendarDate } from './date-validation';
+
+export { parseCalendarDate, isValidCalendarDate };
 
 export const MAX_DATE_ATTEMPTS = 3;
 export const DATE_COOLDOWN_SECONDS = 30;
@@ -36,33 +39,15 @@ export function verifyDateMatch(
   year: string,
   configuredDate: string
 ): boolean {
-  const d = parseInt(day, 10);
-  const m = parseInt(month, 10);
-  const y = parseInt(year, 10);
-
-  if (
-    isNaN(d) ||
-    d < 1 ||
-    d > 31 ||
-    isNaN(m) ||
-    m < 1 ||
-    m > 12 ||
-    isNaN(y) ||
-    y < 1900 ||
-    y > 2100
-  ) {
+  const formattedInput = parseCalendarDate(day, month, year);
+  if (!formattedInput) {
     return false;
   }
 
-  // If no date is configured in the database, allow any valid date format through
+  // If no date is configured in the database, allow any valid calendar date through
   if (!configuredDate || configuredDate.trim() === '') {
     return true;
   }
-
-  const paddedDay = String(d).padStart(2, '0');
-  const paddedMonth = String(m).padStart(2, '0');
-  const paddedYear = String(y).padStart(4, '0');
-  const formattedInput = `${paddedYear}-${paddedMonth}-${paddedDay}`;
 
   return formattedInput === configuredDate.trim();
 }

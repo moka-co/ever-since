@@ -8,18 +8,128 @@ export const secretSchema = z.object(
 )
 export type SecretRecord = z.infer<typeof secretSchema>;
 
+// Memory type discriminator (defaults to 'standard' for backward compatibility)
+export const memoryTypeSchema = z.enum(['standard', 'valentine']).default('standard');
+export type MemoryType = z.infer<typeof memoryTypeSchema>;
+
+export const DEFAULT_MEDIA_POSITION_X = 50;
+export const DEFAULT_MEDIA_POSITION_Y = 50;
+export const DEFAULT_MEDIA_SCALE = 1;
+export const DEFAULT_VALENTINE_QUESTION = 'Will you be my valentine?';
+export const DEFAULT_VALENTINE_YES_LABEL = 'Yes';
+export const DEFAULT_VALENTINE_NO_LABEL = 'No';
+export const DEFAULT_VALENTINE_NO_MESSAGES = [
+  ':(',
+  ':((',
+  ':(((',
+  ':,((',
+];
+
+export function clampMediaPosition(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+export function clampMediaScale(value: number): number {
+  return Math.max(1, Math.min(3, Math.round(value * 10) / 10));
+}
+
+export const valentineConfigSchema = z.object({
+  yesLabel: z.string().trim().min(1).max(40).default(DEFAULT_VALENTINE_YES_LABEL),
+  noLabel: z.string().trim().min(1).max(40).default(DEFAULT_VALENTINE_NO_LABEL),
+  noMessages: z
+    .array(z.string().trim().min(1).max(80))
+    .max(10)
+    .default(DEFAULT_VALENTINE_NO_MESSAGES),
+});
+export type ValentineConfig = z.infer<typeof valentineConfigSchema>;
+
 //Represent a memory 
 //NOTE: this is the basic minimum memory, later other elements may be added
 export const memorySchema = z.object({
     id: z.string().uuid(),
+    type: memoryTypeSchema.optional(),
     heading: z.string().max(100).nullable(),
     text: z.string().max(100).nullable(),
     mediaId: z.string().nullable(), //Same as in mediaRecordSchema
-    mediaPositionX: z.number().min(0).max(100).default(50),
-    mediaPositionY: z.number().min(0).max(100).default(50),
-    mediaScale: z.number().min(1).max(3).default(1)
+    mediaPositionX: z.number().min(0).max(100).default(DEFAULT_MEDIA_POSITION_X),
+    mediaPositionY: z.number().min(0).max(100).default(DEFAULT_MEDIA_POSITION_Y),
+    mediaScale: z.number().min(1).max(3).default(DEFAULT_MEDIA_SCALE),
+    config: valentineConfigSchema.nullable().default(null).optional(),
 })
 export type MemoryRecord = z.infer<typeof memorySchema>;
+
+/**
+ * Centralizes memory normalization, defaults, and clamping for both POST and PUT requests.
+ * Preserves the distinction between an omitted field (undefined), null, and an explicit value.
+ */
+export function buildMemoryRecord(
+  id: string,
+  input: Record<string, unknown>,
+  existing?: Partial<MemoryRecord>
+): MemoryRecord {
+  const type =
+    input.type !== undefined
+      ? memoryTypeSchema.parse(input.type)
+      : memoryTypeSchema.parse(existing?.type ?? 'standard');
+
+  const mediaPositionX =
+    typeof input.mediaPositionX === 'number'
+      ? clampMediaPosition(input.mediaPositionX)
+      : typeof existing?.mediaPositionX === 'number'
+        ? clampMediaPosition(existing.mediaPositionX)
+        : DEFAULT_MEDIA_POSITION_X;
+
+  const mediaPositionY =
+    typeof input.mediaPositionY === 'number'
+      ? clampMediaPosition(input.mediaPositionY)
+      : typeof existing?.mediaPositionY === 'number'
+        ? clampMediaPosition(existing.mediaPositionY)
+        : DEFAULT_MEDIA_POSITION_Y;
+
+  const mediaScale =
+    typeof input.mediaScale === 'number'
+      ? clampMediaScale(input.mediaScale)
+      : typeof existing?.mediaScale === 'number'
+        ? clampMediaScale(existing.mediaScale)
+        : DEFAULT_MEDIA_SCALE;
+
+  const rawHeading =
+    input.heading !== undefined ? input.heading : (existing?.heading ?? null);
+  const heading =
+    type === 'valentine'
+      ? typeof rawHeading === 'string'
+        ? rawHeading.trim() || DEFAULT_VALENTINE_QUESTION
+        : rawHeading === null || rawHeading === undefined
+          ? DEFAULT_VALENTINE_QUESTION
+          : rawHeading
+      : rawHeading;
+
+  const text =
+    input.text !== undefined ? input.text : (existing?.text ?? null);
+  const mediaId =
+    input.mediaId !== undefined ? input.mediaId : (existing?.mediaId ?? null);
+
+  const configSource =
+    input.config !== undefined && input.config !== null
+      ? input.config
+      : input.config === undefined && existing?.config != null
+        ? existing.config
+        : {};
+  const config =
+    type === 'valentine' ? valentineConfigSchema.parse(configSource) : null;
+
+  return memorySchema.parse({
+    id,
+    type,
+    heading,
+    text,
+    mediaId,
+    mediaPositionX,
+    mediaPositionY,
+    mediaScale,
+    config,
+  });
+}
 
 //Media metadata
 export const mediaRecordSchema = z.object({

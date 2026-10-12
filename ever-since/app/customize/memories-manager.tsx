@@ -2,11 +2,51 @@
 
 import { useState, useEffect, useRef, type FormEvent, type DragEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { MAX_MEMORIES_COUNT, type MemoryRecord, type MediaRecord } from '@/lib/storage/schema';
+import {
+  MAX_MEMORIES_COUNT,
+  DEFAULT_MEDIA_POSITION_X,
+  DEFAULT_MEDIA_POSITION_Y,
+  DEFAULT_MEDIA_SCALE,
+  DEFAULT_VALENTINE_QUESTION,
+  DEFAULT_VALENTINE_YES_LABEL,
+  DEFAULT_VALENTINE_NO_LABEL,
+  DEFAULT_VALENTINE_NO_MESSAGES,
+  clampMediaPosition,
+  clampMediaScale,
+  type MemoryRecord,
+  type MediaRecord,
+  type MemoryType,
+} from '@/lib/storage/schema';
 import { MAX_MEDIA_COUNT, isVideo, validateMediaConstraints } from '@/lib/media/validation';
+import {
+  getMobileValentineStepState,
+  VALENTINE_MAX_NO_TAPS,
+} from '@/components/valentine-memory';
 import { Skeleton } from '@/components/ui/skeleton';
 import Alert from './alert';
 import MediaPicker from './media-picker';
+
+function getMemoryFormState(memory?: MemoryRecord) {
+  const type: MemoryType = memory?.type ?? 'standard';
+  return {
+    editingId: memory?.id ?? null,
+    memoryType: type,
+    heading:
+      memory?.heading || (type === 'valentine' ? DEFAULT_VALENTINE_QUESTION : ''),
+    text: memory?.text || '',
+    mediaId: memory?.mediaId || '',
+    mediaPositionX: memory?.mediaPositionX ?? DEFAULT_MEDIA_POSITION_X,
+    mediaPositionY: memory?.mediaPositionY ?? DEFAULT_MEDIA_POSITION_Y,
+    mediaScale: memory?.mediaScale ?? DEFAULT_MEDIA_SCALE,
+    yesLabel: memory?.config?.yesLabel || DEFAULT_VALENTINE_YES_LABEL,
+    noLabel: memory?.config?.noLabel || DEFAULT_VALENTINE_NO_LABEL,
+    noMessagesText: (
+      memory?.config?.noMessages && memory.config.noMessages.length > 0
+        ? memory.config.noMessages
+        : DEFAULT_VALENTINE_NO_MESSAGES
+    ).join('\n'),
+  };
+}
 
 interface MemoriesManagerProps {
   initialMemories: MemoryRecord[];
@@ -21,14 +61,19 @@ export default function MemoriesManager({
   const [memories, setMemories] = useState<MemoryRecord[]>(initialMemories);
 
   // Form state
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [heading, setHeading] = useState('');
-  const [text, setText] = useState('');
-  const [mediaId, setMediaId] = useState('');
-  const [mediaPositionX, setMediaPositionX] = useState<number>(50);
-  const [mediaPositionY, setMediaPositionY] = useState<number>(50);
-  const [mediaScale, setMediaScale] = useState<number>(1);
-  const [buttonType, setButtonType] = useState(''); // Fun button placeholder
+  const initialForm = getMemoryFormState();
+  const [editingId, setEditingId] = useState<string | null>(initialForm.editingId);
+  const [memoryType, setMemoryType] = useState<MemoryType>(initialForm.memoryType);
+  const [heading, setHeading] = useState(initialForm.heading);
+  const [text, setText] = useState(initialForm.text);
+  const [mediaId, setMediaId] = useState(initialForm.mediaId);
+  const [mediaPositionX, setMediaPositionX] = useState<number>(initialForm.mediaPositionX);
+  const [mediaPositionY, setMediaPositionY] = useState<number>(initialForm.mediaPositionY);
+  const [mediaScale, setMediaScale] = useState<number>(initialForm.mediaScale);
+  const [yesLabel, setYesLabel] = useState(initialForm.yesLabel);
+  const [noLabel, setNoLabel] = useState(initialForm.noLabel);
+  const [noMessagesText, setNoMessagesText] = useState(initialForm.noMessagesText);
+  const [previewNoTapCount, setPreviewNoTapCount] = useState(0);
 
   // Inline media upload state
   const [uploadedInSession, setUploadedInSession] = useState<MediaRecord[]>([]);
@@ -60,18 +105,30 @@ export default function MemoriesManager({
   const formRef = useRef<HTMLFormElement>(null);
   const isQuotaFull = !editingId && memories.length >= MAX_MEMORIES_COUNT;
 
+  function applyFormState(memory?: MemoryRecord) {
+    const next = getMemoryFormState(memory);
+    setEditingId(next.editingId);
+    setMemoryType(next.memoryType);
+    setHeading(next.heading);
+    setText(next.text);
+    setMediaId(next.mediaId);
+    setMediaPositionX(next.mediaPositionX);
+    setMediaPositionY(next.mediaPositionY);
+    setMediaScale(next.mediaScale);
+    setYesLabel(next.yesLabel);
+    setNoLabel(next.noLabel);
+    setNoMessagesText(next.noMessagesText);
+    setPreviewNoTapCount(0);
+  }
+
   function updatePositionFromPointer(clientX: number, clientY: number) {
     if (!previewRef.current) return;
     const rect = previewRef.current.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
     const rawX = clientX - rect.left;
     const rawY = clientY - rect.top;
-    const clampedX = Math.max(0, Math.min(rect.width, rawX));
-    const clampedY = Math.max(0, Math.min(rect.height, rawY));
-    const percentageX = Math.round((clampedX / rect.width) * 100);
-    const percentageY = Math.round((clampedY / rect.height) * 100);
-    setMediaPositionX(percentageX);
-    setMediaPositionY(percentageY);
+    setMediaPositionX(clampMediaPosition((rawX / rect.width) * 100));
+    setMediaPositionY(clampMediaPosition((rawY / rect.height) * 100));
   }
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -105,10 +162,7 @@ export default function MemoriesManager({
     const onWheelNative = (e: WheelEvent) => {
       e.preventDefault();
       const zoomDelta = e.deltaY < 0 ? 0.1 : -0.1;
-      setMediaScale((prev) => {
-        const next = Math.round((prev + zoomDelta) * 10) / 10;
-        return Math.max(1, Math.min(3, next));
-      });
+      setMediaScale((prev) => clampMediaScale(prev + zoomDelta));
     };
 
     el.addEventListener('wheel', onWheelNative, { passive: false });
@@ -144,14 +198,15 @@ export default function MemoriesManager({
   }
 
   function resetForm() {
-    setEditingId(null);
-    setHeading('');
-    setText('');
-    setMediaId('');
-    setMediaPositionX(50);
-    setMediaPositionY(50);
-    setMediaScale(1);
-    setButtonType('');
+    applyFormState();
+  }
+
+  function handleMemoryTypeChange(nextType: MemoryType) {
+    setMemoryType(nextType);
+    setPreviewNoTapCount(0);
+    if (nextType === 'valentine' && !heading.trim()) {
+      setHeading(DEFAULT_VALENTINE_QUESTION);
+    }
   }
 
   useEffect(() => {
@@ -211,14 +266,7 @@ export default function MemoriesManager({
   }
 
   function handleStartEdit(memory: MemoryRecord) {
-    setEditingId(memory.id);
-    setHeading(memory.heading || '');
-    setText(memory.text || '');
-    setMediaId(memory.mediaId || '');
-    setMediaPositionX(memory.mediaPositionX ?? 50);
-    setMediaPositionY(memory.mediaPositionY ?? 50);
-    setMediaScale(memory.mediaScale ?? 1);
-    setButtonType('');
+    applyFormState(memory);
     setErrorMessage(null);
     setSuccessMessage(null);
     setIsSaved(false);
@@ -231,6 +279,15 @@ export default function MemoriesManager({
     setErrorMessage(null);
     setSuccessMessage(null);
     setIsSaved(false);
+  }
+
+  function parseNoMessages(raw: string): string[] {
+    const lines = raw
+      .split('\n')
+      .map((s) => s.trim().slice(0, 80))
+      .filter(Boolean)
+      .slice(0, 10);
+    return lines.length > 0 ? lines : DEFAULT_VALENTINE_NO_MESSAGES;
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -247,10 +304,24 @@ export default function MemoriesManager({
     const trimmedHeading = heading.trim();
     const trimmedText = text.trim();
 
-    if (!trimmedHeading && !trimmedText && !mediaId) {
+    if (memoryType === 'standard' && !trimmedHeading && !trimmedText && !mediaId) {
       setErrorMessage('Please provide at least a header, text, or select a media file.');
       return;
     }
+
+    const finalHeading =
+      memoryType === 'valentine'
+        ? trimmedHeading || DEFAULT_VALENTINE_QUESTION
+        : trimmedHeading || null;
+
+    const finalConfig =
+      memoryType === 'valentine'
+        ? {
+            yesLabel: yesLabel.trim().slice(0, 40) || 'Yes',
+            noLabel: noLabel.trim().slice(0, 40) || 'No',
+            noMessages: parseNoMessages(noMessagesText),
+          }
+        : null;
 
     setIsSubmitting(true);
 
@@ -262,12 +333,14 @@ export default function MemoriesManager({
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          heading: trimmedHeading || null,
-          text: trimmedText || null,
-          mediaId: mediaId || null,
+          type: memoryType,
+          heading: finalHeading,
+          text: memoryType === 'valentine' ? null : trimmedText || null,
+          mediaId: memoryType === 'valentine' ? null : mediaId || null,
           mediaPositionX,
           mediaPositionY,
           mediaScale,
+          config: finalConfig,
         }),
       });
 
@@ -459,9 +532,52 @@ export default function MemoriesManager({
         )}
 
         <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {/* Memory Type Selector */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="memory-type" className="text-sm font-semibold text-foreground">
+              Memory Type
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => handleMemoryTypeChange('standard')}
+                disabled={isSubmitting}
+                aria-pressed={memoryType === 'standard'}
+                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl border text-left text-sm font-semibold transition-all ${
+                  memoryType === 'standard'
+                    ? 'border-cta bg-rose-50/70 text-foreground shadow-2xs ring-1 ring-cta'
+                    : 'border-[#F1E8EC] bg-[#FAF7F8] text-muted hover:text-foreground hover:bg-white'
+                }`}
+              >
+                <span className="text-base" aria-hidden="true">📸</span>
+                <div className="flex flex-col">
+                  <span>Standard</span>
+                  <span className="text-[11px] font-normal text-muted">Photo or video card with caption</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMemoryTypeChange('valentine')}
+                disabled={isSubmitting}
+                aria-pressed={memoryType === 'valentine'}
+                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl border text-left text-sm font-semibold transition-all ${
+                  memoryType === 'valentine'
+                    ? 'border-cta bg-rose-50/70 text-foreground shadow-2xs ring-1 ring-cta'
+                    : 'border-[#F1E8EC] bg-[#FAF7F8] text-muted hover:text-foreground hover:bg-white'
+                }`}
+              >
+                <span className="text-base" aria-hidden="true">💘</span>
+                <div className="flex flex-col">
+                  <span>Special: Valentine</span>
+                  <span className="text-[11px] font-normal text-muted">Interactive Yes / dodging No prompt</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
           <div className="flex flex-col gap-1.5">
             <label htmlFor="memory-heading" className="text-sm font-semibold text-foreground">
-              Header
+              {memoryType === 'valentine' ? 'Question / Heading' : 'Header'}
             </label>
             <input
               id="memory-heading"
@@ -469,76 +585,200 @@ export default function MemoriesManager({
               name="heading"
               value={heading}
               onChange={(e) => setHeading(e.target.value)}
-              placeholder="Ever since we met..."
+              placeholder={
+                memoryType === 'valentine'
+                  ? DEFAULT_VALENTINE_QUESTION
+                  : 'Ever since we met...'
+              }
               maxLength={100}
               disabled={isSubmitting}
               className="rounded-xl border border-[#F1E8EC] bg-[#FAF7F8] px-3.5 py-2 text-sm text-foreground placeholder:text-muted/70 focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs disabled:opacity-50 transition-colors"
             />
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="memory-text" className="text-sm font-semibold text-foreground">
-              Text
-            </label>
-            <textarea
-              id="memory-text"
-              name="text"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Memory description..."
-              maxLength={100}
-              rows={2}
-              disabled={isSubmitting}
-              className="rounded-xl border border-[#F1E8EC] bg-[#FAF7F8] px-3.5 py-2 text-sm text-foreground placeholder:text-muted/70 focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs resize-none disabled:opacity-50 transition-colors"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-semibold text-foreground">Media</span>
-              <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept="image/*,video/*"
-                onChange={handleInlineUpload}
-              />
-              <MediaPicker
-                mediaList={combinedMediaList}
-                value={mediaId}
-                onChange={setMediaId}
-                onUploadClick={() => fileInputRef.current?.click()}
-                isUploading={isUploadingMedia}
-                canUpload={combinedMediaList.length < MAX_MEDIA_COUNT}
-                disabled={isSubmitting}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label htmlFor="memory-button" className="text-sm font-semibold text-foreground">
-                  Fun Button
-                </label>
-                <span className="text-[10px] text-muted italic">Coming soon</span>
+          {memoryType === 'valentine' ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="valentine-yes-label" className="text-sm font-semibold text-foreground">
+                    Yes Button Label
+                  </label>
+                  <input
+                    id="valentine-yes-label"
+                    type="text"
+                    value={yesLabel}
+                    onChange={(e) => setYesLabel(e.target.value)}
+                    placeholder="Yes"
+                    maxLength={40}
+                    disabled={isSubmitting}
+                    className="rounded-xl border border-[#F1E8EC] bg-[#FAF7F8] px-3.5 py-2 text-sm text-foreground placeholder:text-muted/70 focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs disabled:opacity-50 transition-colors"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="valentine-no-label" className="text-sm font-semibold text-foreground">
+                    No Button Label
+                  </label>
+                  <input
+                    id="valentine-no-label"
+                    type="text"
+                    value={noLabel}
+                    onChange={(e) => setNoLabel(e.target.value)}
+                    placeholder="No"
+                    maxLength={40}
+                    disabled={isSubmitting}
+                    className="rounded-xl border border-[#F1E8EC] bg-[#FAF7F8] px-3.5 py-2 text-sm text-foreground placeholder:text-muted/70 focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs disabled:opacity-50 transition-colors"
+                  />
+                </div>
               </div>
-              <select
-                id="memory-button"
-                name="buttonType"
-                value={buttonType}
-                onChange={(e) => setButtonType(e.target.value)}
-                disabled={true}
-                className="rounded-xl border border-[#F1E8EC] bg-gray-100/70 px-3.5 py-2 text-sm text-muted cursor-not-allowed shadow-2xs"
-              >
-                <option value="">None</option>
-                <option value="seal">Pixel Seal</option>
-                <option value="sound">Sound Effect (Ye-he)</option>
-                <option value="yes-no">Dodging Yes/No</option>
-              </select>
-            </div>
-          </div>
 
-          {/* Enlarged Card Preview & Interactive Framing */}
-          {(() => {
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="valentine-no-messages" className="text-sm font-semibold text-foreground">
+                    Mobile &ldquo;No&rdquo; Tap Microcopy (one per line)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setNoMessagesText(DEFAULT_VALENTINE_NO_MESSAGES.join('\n'))}
+                    disabled={isSubmitting}
+                    className="text-xs text-muted hover:text-foreground underline"
+                  >
+                    Reset defaults
+                  </button>
+                </div>
+                <textarea
+                  id="valentine-no-messages"
+                  value={noMessagesText}
+                  onChange={(e) => {
+                    setNoMessagesText(e.target.value);
+                    setPreviewNoTapCount(0);
+                  }}
+                  placeholder={DEFAULT_VALENTINE_NO_MESSAGES.join('\n')}
+                  rows={4}
+                  disabled={isSubmitting}
+                  className="rounded-xl border border-[#F1E8EC] bg-[#FAF7F8] px-3.5 py-2 text-sm text-foreground placeholder:text-muted/70 focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs resize-none disabled:opacity-50 transition-colors"
+                />
+                <span className="text-[11px] text-muted">
+                  Shown sequentially after each &ldquo;No&rdquo; tap on mobile before the button disappears on tap 5.
+                </span>
+              </div>
+
+              {/* Interactive Live Preview for Valentine Memory */}
+              {(() => {
+                const parsedMessages = parseNoMessages(noMessagesText);
+                const previewState = getMobileValentineStepState(
+                  previewNoTapCount,
+                  parsedMessages,
+                  false
+                );
+                return (
+                  <div className="flex flex-col gap-3 p-4 sm:p-5 rounded-3xl bg-[#FAF7F8] border border-[#F1E8EC] mt-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <span>Interactive Valentine Preview</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#F472B6]/20 text-[#EC4899] uppercase tracking-wider">
+                          Tap &ldquo;No&rdquo; to test ({previewNoTapCount}/{VALENTINE_MAX_NO_TAPS})
+                        </span>
+                      </span>
+                      {previewNoTapCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewNoTapCount(0)}
+                          className="text-xs font-medium text-muted hover:text-foreground px-2.5 py-1 rounded-lg border border-[#F1E8EC] bg-white hover:bg-gray-50 transition-colors"
+                        >
+                          Reset Preview
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="relative w-full min-h-[260px] rounded-[28px] bg-gradient-to-b from-[#FFF5F7] to-[#FCE7F3]/50 border border-[#F1E8EC] flex flex-col items-center justify-center p-6 overflow-hidden">
+                      <div className="w-10 h-10 rounded-full bg-white border border-[#F1E8EC] shadow-xs flex items-center justify-center mb-3 text-lg">
+                        💘
+                      </div>
+                      <h3 className="text-lg sm:text-xl font-bold text-foreground text-center max-w-xs">
+                        {heading.trim() || DEFAULT_VALENTINE_QUESTION}
+                      </h3>
+                      <div className="min-h-[1.75rem] mt-1.5 mb-3 flex items-center justify-center">
+                        {previewState.activeMicrocopy && (
+                          <span className="text-xs font-semibold text-[#D4537E] bg-white/90 border border-[#F1D6DE] px-3 py-0.5 rounded-full shadow-2xs">
+                            {previewState.activeMicrocopy}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-center gap-4 min-h-[96px]">
+                        <button
+                          type="button"
+                          onClick={() => setPreviewNoTapCount(0)}
+                          style={{
+                            transform: `scale(${Math.min(previewState.yesScale, 2.2)})`,
+                          }}
+                          className="relative z-10 rounded-full px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-[#F472B6] to-[#FB7185] shadow-[0_4px_16px_rgba(244,114,182,0.4)] transition-transform duration-200"
+                        >
+                          {yesLabel.trim() || 'Yes'}
+                        </button>
+                        {!previewState.isNoHidden && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewNoTapCount((c) => Math.min(c + 1, VALENTINE_MAX_NO_TAPS))
+                            }
+                            style={{
+                              transform: `scale(${previewState.noScale})`,
+                              opacity: previewState.noOpacity,
+                            }}
+                            className="rounded-full px-5 py-2 text-xs font-semibold text-[#4B5563] bg-white hover:bg-gray-50 border border-[#F1E8EC] shadow-2xs transition-all duration-200"
+                          >
+                            {noLabel.trim() || 'No'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="memory-text" className="text-sm font-semibold text-foreground">
+                  Text
+                </label>
+                <textarea
+                  id="memory-text"
+                  name="text"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Memory description..."
+                  maxLength={100}
+                  rows={2}
+                  disabled={isSubmitting}
+                  className="rounded-xl border border-[#F1E8EC] bg-[#FAF7F8] px-3.5 py-2 text-sm text-foreground placeholder:text-muted/70 focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta shadow-2xs resize-none disabled:opacity-50 transition-colors"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <span className="text-sm font-semibold text-foreground">Media</span>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="image/*,video/*"
+                  onChange={handleInlineUpload}
+                />
+                <MediaPicker
+                  mediaList={combinedMediaList}
+                  value={mediaId}
+                  onChange={setMediaId}
+                  onUploadClick={() => fileInputRef.current?.click()}
+                  isUploading={isUploadingMedia}
+                  canUpload={combinedMediaList.length < MAX_MEDIA_COUNT}
+                  disabled={isSubmitting}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Enlarged Card Preview & Interactive Framing (Standard Memories) */}
+          {memoryType === 'standard' && (() => {
             const selectedMedia = combinedMediaList.find((m) => m.id === mediaId);
             if (!selectedMedia) return null;
             const isSelectedVideo = isVideo(selectedMedia.filename);
@@ -844,8 +1084,18 @@ export default function MemoriesManager({
                   </div>
 
                   <div className="flex items-start gap-3 min-w-0">
-                    <div className="w-16 h-16 rounded-xl bg-gray-100 border border-[#F1E8EC] overflow-hidden shrink-0 flex items-center justify-center">
-                      {filename ? (
+                    <div
+                      className={`w-16 h-16 rounded-xl border border-[#F1E8EC] overflow-hidden shrink-0 flex items-center justify-center ${
+                        item.type === 'valentine'
+                          ? 'bg-gradient-to-br from-rose-50 to-pink-100/70'
+                          : 'bg-gray-100'
+                      }`}
+                    >
+                      {item.type === 'valentine' ? (
+                        <span className="text-2xl select-none" aria-hidden="true">
+                          💘
+                        </span>
+                      ) : filename ? (
                         isVideo(filename) ? (
                           <div className="relative w-full h-full">
                             <video
@@ -884,14 +1134,25 @@ export default function MemoriesManager({
                     </div>
                     
                     <div className="flex flex-col min-w-0 pt-0.5">
-                      <strong className="text-sm font-semibold text-foreground truncate">
-                        {item.heading || '(No header)'}
-                      </strong>
-                      {item.text && (
+                      <div className="flex items-center gap-2 min-w-0">
+                        <strong className="text-sm font-semibold text-foreground truncate">
+                          {item.heading || '(No header)'}
+                        </strong>
+                        {item.type === 'valentine' && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#F472B6]/20 text-[#EC4899] shrink-0">
+                            Valentine
+                          </span>
+                        )}
+                      </div>
+                      {item.type === 'valentine' ? (
+                        <p className="text-xs text-muted line-clamp-2 mt-0.5 max-w-sm">
+                          Buttons: &ldquo;{item.config?.yesLabel || 'Yes'}&rdquo; / &ldquo;{item.config?.noLabel || 'No'}&rdquo;
+                        </p>
+                      ) : item.text ? (
                         <p className="text-xs text-muted line-clamp-2 mt-0.5 max-w-sm whitespace-pre-wrap">
                           {item.text}
                         </p>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 </li>

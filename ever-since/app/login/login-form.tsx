@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { isValidCalendarDate } from '@/lib/auth/date-validation';
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -170,21 +171,8 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
   // Date submission with escalating feedback & 30-second cooldown
   async function handleDateSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const d = parseInt(day, 10);
-    const m = parseInt(month, 10);
-    const y = parseInt(year, 10);
 
-    if (
-      isNaN(d) ||
-      d < 1 ||
-      d > 31 ||
-      isNaN(m) ||
-      m < 1 ||
-      m > 12 ||
-      isNaN(y) ||
-      y < 1900 ||
-      y > 2100
-    ) {
+    if (!isValidCalendarDate(day, month, year)) {
       setDateError('Please enter a valid date');
       return;
     }

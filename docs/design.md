@@ -233,4 +233,50 @@
 - **Modified Files & Components**:
   - `ever-since/app/timeline-client.tsx` (`TimelineClient` stack pile rendering and remaining-card logic)
   - `ever-since/tests/timeline_ui.test.ts` (unit verification suite)
+
+### 4. Special Button Memory Type: "Valentine" (`type: "valentine"`)
+- **Concept & Data Model**:
+  - A "special button" memory replaces the standard photo + caption card with a full-stage interactive experience at any position in the memory flow.
+  - Extended `memorySchema` in `ever-since/lib/storage/schema.ts` with:
+    - `type: z.enum(['standard', 'valentine']).default('standard').optional()` — existing memories without `type` automatically default to `"standard"` with zero migration issues, and future special types can be added to the enum.
+    - `config: valentineConfigSchema.nullable().default(null).optional()` containing:
+      - `yesLabel` (string, 1–40 chars, default `"Yes"`)
+      - `noLabel` (string, 1–40 chars, default `"No"`)
+      - `noMessages` (array of up to 10 strings, 1–80 chars each, defaulting to `[":(", ":((", ":(((", ":,(( "]` / `[":(", ":((", ":(((", ":,(( "]`.map(s => s.trim()) i.e. `[":(", ":((", ":(((", ":,(("]`)
+    - Default question (`heading`) when `type === "valentine"`: `"Will you be my valentine?"`.
+- **Main Flow Rendering & Lock Behavior**:
+  - When the active memory has `type === "valentine"`, the standard `<motion.article>` card stays mounted in the DOM for layout and height compatibility with `opacity-0 pointer-events-none` and `aria-hidden="true"`, and the decorative back-card stack is hidden (`opacity-0`).
+  - While the Valentine interaction is unresolved for that memory ID in the current session, card drag/swipe gestures, the mobile swipe hint, the first-card like button, rewind, and `< Prev` / `Next >` controls are disabled and hidden (`opacity-0 pointer-events-none`) so the user cannot skip the prompt. Pagination dots remain visible above.
+  - Document scroll (`document.body.style.overflow` and `document.documentElement.style.overflow`) is locked to `"hidden"` while the interaction is mounted and restored on cleanup.
+  - Input mode is detected inside `useEffect` (preventing Next.js SSR/hydration mismatches) via `window.matchMedia("(hover: hover) and (pointer: fine)")` (desktop) and `window.matchMedia("(hover: none) and (pointer: coarse)")` (mobile).
+- **Desktop vs. Mobile Interaction Rules & Final Values**:
+  - **Desktop (`(hover: hover) and (pointer: fine)` — Dodging "No" Button)**:
+    - **Proximity Radius**: `90px` (`VALENTINE_PROXIMITY_RADIUS_PX = 90`).
+    - When the pointer approaches within `90px` of the `No` button's center (or enters it), `computeSafeDodgePosition` samples candidate coordinates inside the stage bounds (`16px` edge padding) that do not overlap the `Yes` button (`24px` safety margin) or the question heading (`18px` safety margin) and lie at least `110px` away from the pointer.
+    - **Dodge Transition**: Smooth `180ms` ease-out transform (`transition-[transform,opacity] duration-[180ms] ease-out`).
+  - **Mobile (`(hover: none) and (pointer: coarse)` — Growing "Yes" Button & Microcopy)**:
+    - **Max "No" Taps**: `5` taps (`VALENTINE_MAX_NO_TAPS = 5`).
+    - **Yes Scale Steps**: `[1.0, 1.35, 1.75, 2.25, 2.9, 3.8]` (`VALENTINE_YES_SCALE_STEPS`).
+    - **No Scale Steps**: `[1.0, 0.9, 0.8, 0.7, 0.6, 0]` (`VALENTINE_NO_SCALE_STEPS`) paired with a `20px` per-step downward offset (`noOffsetY = step * 20`) so the growing `Yes` button never obscures `No` prior to tap 5.
+    - **Microcopy Progression**: Taps `1..5` display the configured `noMessages` strings sequentially in a pill badge above the buttons.
+    - **5th Tap Disappearance**: On the 5th tap (`step >= 5`), `No` becomes invisible and non-interactive (`opacity-0 pointer-events-none`, `disabled`, `aria-hidden="true"`, `tabIndex={-1}`), leaving `Yes` (`3.8x` scale) as the sole actionable choice.
+- **Yes Outcome & Edge Cases**:
+  - Tapping/clicking `Yes` marks the memory ID as resolved (`resolvedValentineIds`) and immediately advances to the next card using the standard slide transition (no intermediate success screen).
+  - **Revisiting a Resolved Valentine Memory**: Navigating back (`< Prev` or `↺ Rewind`) remounts the Valentine interaction fresh so the partner can replay the buttons, while keeping the bottom `< Prev` / `Next >` controls unlocked since it was already answered once in the session.
+  - **Valentine as the Last Card**: When `currentIndex === memories.length - 1`, clicking `Yes` resolves in-place—hiding `No`, transitioning `Yes` to `"♥ {yesLabel}!"`, displaying `"♥ Forever & always!"`, and unlocking the bottom `< Prev` and `↺ Rewind` controls.
+- **Accessibility & `prefers-reduced-motion`**:
+  - `Yes` is always first in DOM/tab order (`Heading -> Yes -> No`), focus is never trapped, and keyboard users activating `No` step through the 5-step sequence.
+  - When `prefers-reduced-motion` is enabled, desktop dodging and large scale animations are disabled (`yesScale = 1.0`, `noScale = 1.0`); activating `No` cross-fades the microcopy and steps `No` opacity smoothly down (`[1.0, 0.8, 0.6, 0.4, 0.2, 0]`).
+- **Customize Dashboard (`/customize`)**:
+  - Admins can toggle between **Standard** and **Special: Valentine** when adding or editing any memory.
+  - Editable Valentine fields: Question/Heading, Yes Button Label, No Button Label, and Mobile "No" Tap Microcopy (one per line, with a "Reset defaults" action).
+  - Includes an **Interactive Valentine Preview** inside the form where clicking `No` live-tests the 5-tap growth and microcopy sequence.
+- **Modified & Created Files**:
+  - `ever-since/lib/storage/schema.ts` (`memoryTypeSchema`, `valentineConfigSchema`, `memorySchema`)
+  - `ever-since/app/api/memories/route.ts` & `ever-since/app/api/memories/[id]/route.ts`
+  - `ever-since/components/valentine-memory.tsx` (`ValentineMemory` component and pure dodge/step helpers)
+  - `ever-since/app/timeline-client.tsx` (overlay mounting, background card compatibility, and control locking)
+  - `ever-since/app/customize/memories-manager.tsx` (type selector, Valentine editor fields, live preview, and timeline list badge)
+  - `ever-since/tests/valentine_memory.test.ts` & `ever-since/package.json`
+
 
