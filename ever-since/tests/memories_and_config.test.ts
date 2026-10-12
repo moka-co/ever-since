@@ -120,8 +120,8 @@ runTestSuite('Memories & Customize Config', async ({ harness }) => {
         ConfigSaveController,
         SAVE_FEEDBACK_DURATION_MS,
         NETWORK_ERROR_MESSAGE,
-      } = await import('../app/customize/use-config-save');
-      const { getSaveSubmitButtonState } = await import('../app/customize/save-submit-button');
+      } = await import('../app/customize/hooks/use-config-save');
+      const { getSaveSubmitButtonState } = await import('../app/customize/ui/save-submit-button');
 
       harness.assert(
         SAVE_FEEDBACK_DURATION_MS === 2500,
@@ -635,8 +635,8 @@ runTestSuite('Memories & Customize Config', async ({ harness }) => {
     {
       console.log('\nTest 13: Shared getPhotoFramingStyle & matching position and zoom after saving and reopening a memory');
       const { getPhotoFramingStyle } = await import('../lib/storage/schema');
-      const { getMemoryFormState } = await import('../app/customize/memories-manager');
-      const { getMediaThumbnailProps } = await import('../app/customize/media-thumbnail');
+      const { getMemoryFormState } = await import('../app/customize/memories/memories-manager');
+      const { getMediaThumbnailProps } = await import('../app/customize/media/media-thumbnail');
 
       // Free one slot so we can create and reopen a memory
       await updateDb((current) => ({

@@ -343,7 +343,7 @@ runTestSuite('Media Constraints & Operations', async ({ harness, temp }) => {
         appendUniqueMedia,
         NO_MEDIA_FILE_ERROR,
         UPLOAD_NETWORK_ERROR,
-      } = await import('../app/customize/use-media-upload');
+      } = await import('../app/customize/hooks/use-media-upload');
 
       let fetchCalls = 0;
       const routeFetch: typeof fetch = async (_input, init) => {
@@ -552,7 +552,7 @@ runTestSuite('Media Constraints & Operations', async ({ harness, temp }) => {
         getMediaThumbnailProps,
         applyThumbnailPlaybackRate,
         THUMBNAIL_VIDEO_PLAYBACK_RATE,
-      } = await import('../app/customize/media-thumbnail');
+      } = await import('../app/customize/media/media-thumbnail');
 
       // 1. JPG and GIF are classified as photos via isVideo
       const jpgThumb = getMediaThumbnailProps({ filename: 'anniversary.jpg' });
@@ -661,7 +661,7 @@ runTestSuite('Media Constraints & Operations', async ({ harness, temp }) => {
       // Test 18: Single-pass partitionMediaLibrary and Set-based collectUsedMediaIds
       console.log('\nTest 18: Single-pass partitionMediaLibrary and Set-based collectUsedMediaIds');
       const { partitionMediaLibrary, collectUsedMediaIds } = await import(
-        '../app/customize/media-manager'
+        '../app/customize/media/media-manager'
       );
 
       let filenameReads = 0;

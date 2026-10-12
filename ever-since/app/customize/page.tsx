@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { readDb } from '@/lib/storage/db';
 import { reconcileMediaLibrary } from '@/lib/media/sync';
-import ConfigForm from './config-form';
-import SealPhotoManager from './seal-photo-manager';
-import MediaManager, { collectUsedMediaIds } from './media-manager';
-import MemoriesManager from './memories-manager';
-import CustomizeTabs from './customize-tabs';
+import ConfigForm from './settings/config-form';
+import SealPhotoManager from './settings/seal-photo-manager';
+import MediaManager, { collectUsedMediaIds } from './media/media-manager';
+import MemoriesManager from './memories/memories-manager';
+import CustomizeTabs from './ui/customize-tabs';
 
 export const dynamic = 'force-dynamic';
 

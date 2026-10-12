@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import type { MediaRecord } from '@/lib/storage/schema';
 import { MAX_MEDIA_COUNT, isVideo } from '@/lib/media/validation';
 import { Skeleton } from '@/components/ui/skeleton';
-import Alert from './alert';
+import Alert from '../ui/alert';
 import MediaThumbnail from './media-thumbnail';
-import { appendUniqueMedia, useMediaUpload } from './use-media-upload';
+import { appendUniqueMedia, useMediaUpload } from '../hooks/use-media-upload';
 
 export function partitionMediaLibrary(mediaList: MediaRecord[]): {
   photos: MediaRecord[];

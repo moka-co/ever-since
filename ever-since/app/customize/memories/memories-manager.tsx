@@ -24,10 +24,10 @@ import {
   VALENTINE_MAX_NO_TAPS,
 } from '@/components/valentine-memory';
 import { Skeleton } from '@/components/ui/skeleton';
-import Alert from './alert';
-import MediaPicker from './media-picker';
-import MediaThumbnail from './media-thumbnail';
-import { appendUniqueMedia, useMediaUpload } from './use-media-upload';
+import Alert from '../ui/alert';
+import MediaPicker from '../media/media-picker';
+import MediaThumbnail from '../media/media-thumbnail';
+import { appendUniqueMedia, useMediaUpload } from '../hooks/use-media-upload';
 
 export function getMemoryFormState(memory?: MemoryRecord) {
   const type: MemoryType = memory?.type ?? 'standard';

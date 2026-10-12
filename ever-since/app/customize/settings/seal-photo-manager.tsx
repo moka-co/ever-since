@@ -2,9 +2,9 @@
 
 import { useState, type FormEvent } from 'react';
 import type { MediaRecord } from '@/lib/storage/schema';
-import Alert from './alert';
-import SaveSubmitButton from './save-submit-button';
-import { useConfigSave } from './use-config-save';
+import Alert from '../ui/alert';
+import SaveSubmitButton from '../ui/save-submit-button';
+import { useConfigSave } from '../hooks/use-config-save';
 
 interface SealPhotoManagerProps {
   initialSealMediaId: string | null;

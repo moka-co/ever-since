@@ -26,6 +26,7 @@ ever-since/
 │   └── testing.md
 └── ever-since/                # Next.js Application
     ├── .gitignore
+    ├── components.json
     ├── eslint.config.mjs
     ├── next.config.ts
     ├── package.json
@@ -36,7 +37,8 @@ ever-since/
     │   ├── api/
     │   │   ├── auth/
     │   │   │   ├── login/route.ts
-    │   │   │   └── logout/route.ts
+    │   │   │   ├── logout/route.ts
+    │   │   │   └── verify-date/route.ts
     │   │   ├── config/route.ts
     │   │   ├── media/
     │   │   │   ├── [id]/route.ts
@@ -46,10 +48,23 @@ ever-since/
     │   │       ├── reorder/route.ts
     │   │       └── route.ts
     │   ├── customize/
-    │   │   ├── alert.tsx
-    │   │   ├── config-form.tsx
-    │   │   ├── media-manager.tsx
-    │   │   ├── memories-manager.tsx
+    │   │   ├── hooks/
+    │   │   │   ├── use-config-save.ts
+    │   │   │   └── use-media-upload.ts
+    │   │   ├── media/
+    │   │   │   ├── media-manager.tsx
+    │   │   │   ├── media-picker.tsx
+    │   │   │   └── media-thumbnail.tsx
+    │   │   ├── memories/
+    │   │   │   └── memories-manager.tsx
+    │   │   ├── settings/
+    │   │   │   ├── config-form.tsx
+    │   │   │   └── seal-photo-manager.tsx
+    │   │   ├── ui/
+    │   │   │   ├── alert.tsx
+    │   │   │   ├── customize-tabs.tsx
+    │   │   │   └── save-submit-button.tsx
+    │   │   ├── loading.tsx
     │   │   └── page.tsx
     │   ├── login/
     │   │   ├── login-form.tsx
@@ -59,15 +74,28 @@ ever-since/
     │   ├── favicon.ico
     │   ├── globals.css
     │   ├── layout.tsx
+    │   ├── loading.tsx
     │   ├── page.tsx
     │   └── timeline-client.tsx
+    ├── components/
+    │   ├── ui/
+    │   │   └── skeleton.tsx
+    │   ├── swipe-hint.tsx
+    │   └── valentine-memory.tsx
     ├── lib/
     │   ├── api.ts
+    │   ├── logger.ts
+    │   ├── utils.ts
     │   ├── auth/
+    │   │   ├── date-lockout.ts
+    │   │   ├── date-validation.ts
     │   │   ├── lockout.ts
     │   │   └── session.ts
+    │   ├── hooks/
+    │   │   └── use-swipe-hint.ts
     │   ├── media/
     │   │   ├── processor.ts
+    │   │   ├── range.ts
     │   │   ├── sync.ts
     │   │   └── validation.ts
     │   └── storage/
@@ -76,13 +104,18 @@ ever-since/
     ├── scripts/
     │   └── init-secret.mjs
     ├── tests/
-    │   ├── helpers.ts
+    │   ├── date_verification.test.ts
     │   ├── db.test.ts
+    │   ├── helpers.ts
     │   ├── lockout.test.ts
     │   ├── logger.test.ts
     │   ├── media.test.ts
     │   ├── memories_and_config.test.ts
-    │   └── proxy.test.ts
+    │   ├── proxy.test.ts
+    │   ├── run.ts
+    │   ├── swipe_hint.test.ts
+    │   ├── timeline_ui.test.ts
+    │   └── valentine_memory.test.ts
     ├── banned_ip.log              # Generated runtime IP lockout list
     └── eversince.logs             # Generated runtime log file
 ```
@@ -107,9 +140,9 @@ ever-since/
   - `simple-git-hooks`: Lightweight pre-commit git hook manager.
 
 **UI Components & Architecture**:
-- **Shared Alert Component (`app/customize/alert.tsx`)**: Reusable client component providing consistent success and error notifications across `/customize` modules (`ConfigForm`, `MediaManager`, `MemoriesManager`). Consolidates alert styling, accessibility roles (`role="alert"`, `role="status"`), and dismiss handling into a single component.
-- **Media Manager (`app/customize/media-manager.tsx`)**: Partitioned into dedicated Photos and Videos sections with responsive grids, upload quota counters, and deletion overlays. Videos render live with muted 1.5x autoplay looping previews (`pointer-events-none`). Unused media badges highlight unassigned assets.
-- **Memories Manager (`app/customize/memories-manager.tsx`)**: Form for authoring and editing memories, featuring an enlarged card preview matching the main flow aspect ratio. Includes interactive click-and-drag 2D photo framing (`mediaPositionX`, `mediaPositionY`, 0%–100%), mouse wheel zoom and toolbar controls (`mediaScale`, 1.0x–3.0x), and preview audio controls for videos (mute/unmute toggle, volume range slider, -10%/+10% steppers). Synchronizes framing and zoom scale identically across editor preview, list thumbnails, and timeline cards.
+- **Shared Alert Component (`app/customize/ui/alert.tsx`)**: Reusable client component providing consistent success and error notifications across `/customize` modules (`ConfigForm`, `MediaManager`, `MemoriesManager`). Consolidates alert styling, accessibility roles (`role="alert"`, `role="status"`), and dismiss handling into a single component.
+- **Media Manager (`app/customize/media/media-manager.tsx`)**: Partitioned into dedicated Photos and Videos sections with responsive grids, upload quota counters, and deletion overlays. Videos render live with muted 1.5x autoplay looping previews (`pointer-events-none`). Unused media badges highlight unassigned assets.
+- **Memories Manager (`app/customize/memories/memories-manager.tsx`)**: Form for authoring and editing memories, featuring an enlarged card preview matching the main flow aspect ratio. Includes interactive click-and-drag 2D photo framing (`mediaPositionX`, `mediaPositionY`, 0%–100%), mouse wheel zoom and toolbar controls (`mediaScale`, 1.0x–3.0x), and preview audio controls for videos (mute/unmute toggle, volume range slider, -10%/+10% steppers). Synchronizes framing and zoom scale identically across editor preview, list thumbnails, and timeline cards.
 - **Main Timeline Flow & Preloading Pipeline (`app/timeline-client.tsx`)**:
   - **Lazy Media Preloading Pipeline**: Background preloading executes upon timeline mount for all timeline memory images using `new Image()` prefetching, ensuring instant transitions without blank card flashes.
   - **Hydration Race Condition Fix**: Fixes the issue where browser-cached images or SSR DOM hydration caused the first card image to remain invisible/empty (skeleton overlay stuck). React 19 synthetic `onLoad` handlers do not fire if `img.complete` is already true prior to event attachment. Uses an image ref callback (`if (el.complete && el.naturalWidth > 0) markLoaded(index)`) combined with a `loadedIndices` Set state to guarantee immediate visibility on initial load.
