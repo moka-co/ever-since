@@ -58,7 +58,7 @@ USER nextjs
 EXPOSE 3000
 
 # Mount persistent volumes for flat JSON database and uploaded media assets
-VOLUME ["/app/data", "/app/media"]
+VOLUME ["/app/data", "/app/media", "app/logs/"]
 
 # On startup, issues 20-character secret, prints to stdout log, updates db, and starts Next.js
 CMD ["npx", "tsx", "scripts/init-secret.mjs"]

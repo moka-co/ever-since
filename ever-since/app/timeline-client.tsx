@@ -4,6 +4,8 @@ import { motion, PanInfo, AnimatePresence, MotionConfig, useReducedMotion } from
 import type { MemoryRecord, MediaRecord } from "@/lib/storage/schema";
 import { isVideo } from "@/lib/media/validation";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSwipeHint } from "@/lib/hooks/use-swipe-hint";
+import SwipeHint from "@/components/swipe-hint";
 
 interface TimelineClientProps {
   memories: MemoryRecord[];
@@ -17,11 +19,22 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
   const [isRewinding, setIsRewinding] = useState(false);
   const [showRewindHint, setShowRewindHint] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const rewindTimeout = useRef<NodeJS.Timeout | null>(null);
   const rewindHintTimeout = useRef<NodeJS.Timeout | null>(null);
   const pointerDownTime = useRef<number>(0);
   const shouldReduceMotion = useReducedMotion();
+  const { isHintActive, dismissPermanently } = useSwipeHint({
+    enabled: currentIndex === 0 && memories.length > 1,
+  });
+
+  // Permanently dismiss hint once user has advanced beyond the first card
+  useEffect(() => {
+    if (currentIndex > 0) {
+      dismissPermanently();
+    }
+  }, [currentIndex, dismissPermanently]);
 
   // Pause video and reset time when navigating memories
   useEffect(() => {
@@ -110,6 +123,7 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
 
   const handleNext = () => {
     setIsPlaying(false);
+    dismissPermanently();
     if (currentIndex < memories.length - 1) {
       setDirection(1);
       setCurrentIndex((prev) => prev + 1);
@@ -121,6 +135,12 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
     if (currentIndex > 0) {
       setDirection(-1);
       setCurrentIndex((prev) => prev - 1);
+    }
+  };
+
+  const handleLike = () => {
+    if (!isLiked) {
+      setIsLiked(true);
     }
   };
 
@@ -171,7 +191,10 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
 
   const activeMemory = memories[currentIndex];
   const activeMedia = activeMemory?.mediaId ? media.find((m) => m.id === activeMemory.mediaId) : null;
-  const showStackPeek = currentIndex < memories.length - 1;
+  const remainingCards = Math.max(0, memories.length - 1 - currentIndex);
+  const showBackCard1 = remainingCards >= 1;
+  const showBackCard2 = remainingCards >= 2;
+  const isOddCard = currentIndex % 2 === 1;
   const mediaSrc = activeMedia ? `/api/media/${activeMedia.filename}` : '';
 
   if (memories.length === 0) {
@@ -214,14 +237,37 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
           </ol>
         </nav>
 
-        {/* Card container with faux stack cue */}
-        <div className="relative w-[min(calc(100vw-3.75rem),calc(100svh-18rem),340px)] sm:w-[clamp(280px,calc(100svh-17rem),420px)] max-w-full -translate-x-1 sm:translate-x-0">
-          {showStackPeek && (
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 translate-x-2 sm:translate-x-3.5 translate-y-1.5 sm:translate-y-2 rounded-[32px] sm:rounded-[36px] md:rounded-[40px] border border-[#ECDCE3] bg-[#FCF8FA] shadow-[0_8px_25px_rgba(255,150,170,0.15)] sm:shadow-[0_10px_35px_rgba(255,150,170,0.18)] -z-10"
-            />
-          )}
+        {/* Card container with natural two-card photo pile */}
+        <div className="relative w-[min(calc(100vw-3.25rem),calc((100dvh-17rem)*4/5),360px)] sm:w-[clamp(280px,calc((100dvh-16rem)*4/5),400px)] max-w-full">
+          {/* Back card 2 (furthest) */}
+          <div
+            aria-hidden="true"
+            style={
+              {
+                "--stack-rotate": showBackCard2 ? (isOddCard ? "-2.5deg" : "-2deg") : "0deg",
+                "--stack-x": showBackCard2 ? (isOddCard ? "clamp(-8px, -2vw, -6px)" : "clamp(-7px, -1.8vw, -5px)") : "0px",
+                "--stack-y": showBackCard2 ? (isOddCard ? "11px" : "10px") : "0px",
+              } as React.CSSProperties
+            }
+            className={`pointer-events-none absolute inset-0 origin-bottom rounded-[32px] sm:rounded-[36px] md:rounded-[40px] border border-[#F1E8EC] bg-white shadow-[0_4px_14px_rgba(255,150,170,0.08)] sm:shadow-[0_6px_20px_rgba(255,150,170,0.10)] -z-20 transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none [transform:translate3d(var(--stack-x),var(--stack-y),0)_rotate(var(--stack-rotate))] ${
+              showBackCard2 ? "opacity-75" : "opacity-0"
+            }`}
+          />
+
+          {/* Back card 1 (closest to main card) */}
+          <div
+            aria-hidden="true"
+            style={
+              {
+                "--stack-rotate": showBackCard1 ? (isOddCard ? "2deg" : "2.5deg") : "0deg",
+                "--stack-x": showBackCard1 ? (isOddCard ? "clamp(5px, 1.5vw, 6px)" : "clamp(6px, 1.8vw, 8px)") : "0px",
+                "--stack-y": showBackCard1 ? (isOddCard ? "5px" : "6px") : "0px",
+              } as React.CSSProperties
+            }
+            className={`pointer-events-none absolute inset-0 origin-bottom rounded-[32px] sm:rounded-[36px] md:rounded-[40px] border border-[#F1E8EC] bg-white shadow-[0_6px_20px_rgba(255,150,170,0.12)] sm:shadow-[0_8px_26px_rgba(255,150,170,0.14)] -z-10 transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none [transform:translate3d(var(--stack-x),var(--stack-y),0)_rotate(var(--stack-rotate))] ${
+              showBackCard1 ? "opacity-100" : "opacity-0"
+            }`}
+          />
 
           <AnimatePresence mode="wait" custom={direction}>
             <motion.article
@@ -240,13 +286,21 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
                   opacity: 1,
                   x: 0,
                 },
+                peek: {
+                  x: [0, -24, 0, -24, 0],
+                  transition: {
+                    duration: 1.8,
+                    times: [0, 0.25, 0.5, 0.75, 1],
+                    ease: ["easeInOut", "easeOut", "easeInOut", "easeOut"],
+                  },
+                },
                 exit: (dir: number) => ({
                   opacity: 0,
                   x: shouldReduceMotion ? 0 : dir * -60,
                 }),
               }}
               initial="enter"
-              animate="center"
+              animate={isHintActive && !shouldReduceMotion ? "peek" : "center"}
               exit="exit"
               transition={{
                 duration: shouldReduceMotion ? 0.15 : undefined,
@@ -257,7 +311,7 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
               className="w-full rounded-[32px] sm:rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_10px_30px_rgba(255,150,170,0.18)] sm:shadow-[0_12px_40px_rgba(255,150,170,0.22)] overflow-hidden flex flex-col p-4 sm:p-5 cursor-grab active:cursor-grabbing select-none"
             >
               {/* Media figure */}
-              <figure className="relative w-full aspect-square rounded-[22px] sm:rounded-[26px] md:rounded-[28px] overflow-hidden bg-[#FAF7F8] flex items-center justify-center shrink-0 select-none [-webkit-touch-callout:none]">
+              <figure className="relative w-full aspect-[4/5] rounded-[22px] sm:rounded-[26px] md:rounded-[28px] overflow-hidden bg-[#FAF7F8] flex items-center justify-center shrink-0 select-none [-webkit-touch-callout:none]">
                 {activeMedia ? (
                   <>
                     {!isCurrentMediaLoaded && (
@@ -365,6 +419,13 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
               )}
             </motion.article>
           </AnimatePresence>
+
+          {/* Swipe hint on first card */}
+          <AnimatePresence>
+            {isHintActive && currentIndex === 0 && (
+              <SwipeHint isReducedMotion={shouldReduceMotion} />
+            )}
+          </AnimatePresence>
         </div>
 
       {/* Unified control toolbar directly below the card */}
@@ -380,31 +441,74 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
         </button>
 
-        {/* Rewind Button */}
-        <div className="relative w-12 h-12 rounded-full bg-white border border-[#F1E8EC] shadow-sm flex items-center justify-center overflow-hidden group">
-          <motion.div
-            className="absolute inset-0 bg-[#D4537E] rounded-full origin-center"
-            initial={{ scale: 0 }}
-            animate={{ scale: isRewinding ? 1 : 0 }}
-            transition={{ duration: isRewinding ? 1.5 : 0.2, ease: "linear" }}
-          />
+        {/* First card: Like Button | Other cards: Rewind Button */}
+        {currentIndex === 0 ? (
           <button
             type="button"
-            aria-label="Rewind to beginning"
-            onPointerDown={handlePointerDown}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            onPointerLeave={handlePointerUp}
-            onContextMenu={(e) => e.preventDefault()}
-            style={{ touchAction: 'none' }}
-            className={`relative z-10 w-full h-full flex items-center justify-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta rounded-full select-none ${
-              isRewinding ? 'text-white' : 'text-[#6B7280] hover:text-foreground'
-            }`}
+            aria-label={isLiked ? "Liked" : "Like"}
+            aria-pressed={isLiked}
+            disabled={isLiked}
+            onClick={handleLike}
+            className="w-12 h-12 rounded-full bg-white hover:bg-gray-50 border border-[#F1E8EC] shadow-sm flex items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta select-none disabled:opacity-100 disabled:pointer-events-none disabled:hover:bg-white"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
-            <span className="sr-only">Rewind</span>
+            {isLiked ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="#FF3040"
+                stroke="#FF3040"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+              </svg>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#374151"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+              </svg>
+            )}
           </button>
-        </div>
+        ) : (
+          <div className="relative w-12 h-12 rounded-full bg-white border border-[#F1E8EC] shadow-sm flex items-center justify-center overflow-hidden group">
+            <motion.div
+              className="absolute inset-0 bg-[#D4537E] rounded-full origin-center"
+              initial={{ scale: 0 }}
+              animate={{ scale: isRewinding ? 1 : 0 }}
+              transition={{ duration: isRewinding ? 1.5 : 0.2, ease: "linear" }}
+            />
+            <button
+              type="button"
+              aria-label="Rewind to beginning"
+              onPointerDown={handlePointerDown}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+              onPointerLeave={handlePointerUp}
+              onContextMenu={(e) => e.preventDefault()}
+              style={{ touchAction: 'none' }}
+              className={`relative z-10 w-full h-full flex items-center justify-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta rounded-full select-none ${
+                isRewinding ? 'text-white' : 'text-[#6B7280] hover:text-foreground'
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+              <span className="sr-only">Rewind</span>
+            </button>
+          </div>
+        )}
 
         {/* Next Button - Primary Action */}
         <button

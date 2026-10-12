@@ -108,6 +108,16 @@
     - **Rewind (`↺`)**: Centered 1.5-second press-and-hold button with circular radial fill animation in berry rose.
     - **Next (`>`)**: Primary action button styled with an eye-catching peach-pink gradient (`from-[#F472B6] to-[#FB7185]`), white chevron, and glowing rose shadow to establish clear narrative hierarchy.
   - Mobile swipe gestures on the card remain supported for natural one-handed browsing.
+- **Mobile Swipe Hint & Card Peek Discovery**:
+  - **Purpose**: Affordance discovery for touch-device users without cluttering the screen or obstructing romantic memories.
+  - **Trigger & Mobile Exclusivity**: Evaluated purely client-side on touch devices (`(hover: none) and (pointer: coarse)` with viewport width `<= 768px`). Displays exclusively on the first memory card after 4 seconds of inactivity, provided there is more than one memory. Desktop browsers render nothing and attach no timers.
+  - **Motion & Visual Choreography**:
+    - **Card Peek**: The front card translates ~24px to the left with an elastic/spring easing, briefly unveiling the faux stacked card beneath before returning to center (cycle duration ~900ms).
+    - **Hand Swipe Floating Capsule**: Placed in the lower-middle area of the card (`pointer-events-none`, `aria-hidden="true"`), a frosted capsule (`bg-white/90 backdrop-blur-md border border-[#F1D6DE] shadow-[0_4px_20px_rgba(212,83,126,0.22)]`) featuring berry rose double chevrons, hand swipe SVG, and subtle uppercase "SWIPE" copy slides right-to-left in lockstep with the card peek and softly fades out.
+    - **Cycle Cadence**: Plays 2 cycles (~1800ms) then pauses. Repeats every ~6 seconds if user remains inactive, capped at 3 shows per session (`sessionStorage`).
+    - **Instant Dismissal**: Any interaction (`touchstart`, `touchmove`, `pointerdown`, `scroll`, `click`, `keydown`) instantly dismisses the hint with a 150ms fade and resets the inactivity timer.
+    - **Permanent Dismissal**: Navigating beyond the first card permanently disables the hint via `localStorage.swipeHintDismissed`.
+    - **Accessibility (`prefers-reduced-motion`)**: When reduced motion is preferred, all horizontal translations are disabled (`x = 0`); the indicator displays in-place with a soft opacity fade.
 - **Empty State (Main Flow)**:
   - When no memories have been published yet, renders a minimal, romantic placeholder card: *"Our memories are still being written... Check back soon!"*
   - Status: [TO REFINE: Placeholder illustration and custom copy]
@@ -184,4 +194,43 @@
 ## Figma prototype
 
 - Grayscale prototype UI/UX only, ignore aesthetics: https://www.figma.com/design/RTCRnh6OiuRNrSxkpjFWZg/Untitled?node-id=0-1&m=dev&t=lWgPGJBU2ph7qnsE-1
-- 
+
+## Main Flow UI Refinements
+
+### 1. Larger Photo with 4:5 Aspect Ratio
+- **What Changed & Why**: Updated the memory card media container in the main timeline flow (`/`) from a 1:1 square (`aspect-square`) to a taller 4:5 portrait ratio (`aspect-[4/5]`, CSS `aspect-ratio: 4 / 5; object-fit: cover`). Portrait photos are the natural format on mobile phones, and a 4:5 frame utilizes vertical screen real estate much more effectively while preserving room for the narrative caption and navigation controls.
+- **Final Design Decisions**:
+  - **Aspect Ratio & Framing**: Every card's `<figure>` uses `aspect-[4/5]` with `object-cover` on `<img>` and `<video>`, keeping the existing inner border radius (`rounded-[22px] sm:rounded-[26px] md:rounded-[28px]`), card padding (`p-4 sm:p-5`), and integrated caption below the media.
+  - **Viewport-Aware Sizing (No Page Scroll)**: To guarantee that the pagination dots above, the card, and the control toolbar below fit completely within the mobile viewport without triggering vertical page scroll (tested across `360x640` and `412x915` screens), the card container width scales dynamically with available `dvh`: `w-[min(calc(100vw-3.25rem),calc((100dvh-17rem)*4/5),360px)] sm:w-[clamp(280px,calc((100dvh-16rem)*4/5),400px)]`.
+- **Modified Files & Components**:
+  - `ever-since/app/timeline-client.tsx` (`TimelineClient` card container and media `<figure>`)
+  - `ever-since/app/loading.tsx` (`Loading` skeleton card container and media placeholder)
+
+### 2. Instagram-Style Like Button on the First Card Only
+- **What Changed & Why**: On the very first memory card (`currentIndex === 0`), the rewind button (which is redundant on the first card since the user is already at the beginning) is replaced in the bottom control toolbar by an Instagram-style heart Like button. All subsequent cards (`currentIndex > 0`) keep the press-and-hold rewind button unchanged.
+- **Final Design Decisions**:
+  - **Position & Geometry**: Occupies the exact center control slot with identical dimensions and styling (`w-12 h-12 rounded-full bg-white border border-[#F1E8EC] shadow-sm`) so the 3-button toolbar never shifts horizontally when navigating between the first card and subsequent cards.
+  - **Icon States & Colors**: Uses an inline SVG heart matching Instagram's heart iconography:
+    - **Default (Unliked)**: Outline heart (`fill="none"`, `stroke="#374151"`, `strokeWidth="2"`), neutral dark gray stroke.
+    - **Liked**: Solid filled heart in Instagram red (`fill="#FF3040"`, `stroke="#FF3040"`).
+  - **One-Time Behavior & No Animation**: Tapping the button transitions `isLiked` from `false` to `true` once for the session. It cannot be un-liked or toggled off. After liking, the button is disabled (`disabled={isLiked}`) with `disabled:opacity-100 disabled:pointer-events-none` so it remains visually vibrant without dimming. By explicit design choice, there are no particle effects, confetti, floating hearts, or scale/bounce animations—just an immediate, clean state switch from outline to filled.
+  - **Accessibility**: Announces `aria-label="Like"` with `aria-pressed="false"` before liking, and `aria-label="Liked"` with `aria-pressed="true"` after liking.
+- **Modified Files & Components**:
+  - `ever-since/app/timeline-client.tsx` (`TimelineClient` state and footer controls)
+  - `ever-since/tests/timeline_ui.test.ts` (unit verification suite)
+
+### 3. Two-Card Natural Photo Pile Stack Effect
+- **What Changed & Why**: Replaced the single arbitrary right/bottom-offset peek card behind the main memory card with two decorative, fanned back cards anchored at the bottom center (`origin-bottom`). This creates the organic visual metaphor of a physical pile of printed photos resting beneath the current memory.
+- **Final Design Decisions**:
+  - **Back Card 1 (Closest, `-z-10`)**: Rotated `+2.5deg` (shifting subtly to `+2deg` on odd indices), offset right `clamp(6px, 1.8vw, 8px)` (`clamp(5px, 1.5vw, 6px)` on odd indices) and down `6px` (`5px` on odd indices), full opacity (`1`), with a softer shadow (`shadow-[0_6px_20px_rgba(255,150,170,0.12)] sm:shadow-[0_8px_26px_rgba(255,150,170,0.14)]`).
+  - **Back Card 2 (Furthest, `-z-20`)**: Rotated `-2deg` (shifting subtly to `-2.5deg` on odd indices), offset left `clamp(-7px, -1.8vw, -5px)` (`clamp(-8px, -2vw, -6px)` on odd indices) and down `10px` (`11px` on odd indices), lower opacity (`0.75`), with the softest shadow (`shadow-[0_4px_14px_rgba(255,150,170,0.08)] sm:shadow-[0_6px_20px_rgba(255,150,170,0.10)]`).
+  - **Surface & Geometry**: Both back cards match the main card's border radius (`rounded-[32px] sm:rounded-[36px] md:rounded-[40px]`), white background (`bg-white`), and delicate border (`border-[#F1E8EC]`), rendered without inner content, `aria-hidden="true"`, and `pointer-events-none`.
+  - **Remaining Cards Rule**: Driven by `remainingCards = Math.max(0, memories.length - 1 - currentIndex)`:
+    - `2` back cards shown when at least `2` cards remain after the current one.
+    - `1` back card (`Back Card 1`) shown when only `1` card remains.
+    - `0` back cards shown on the last card.
+  - **Alive Navigation Transition & Accessibility**: Transform and opacity values are driven by CSS custom properties (`--stack-rotate`, `--stack-x`, `--stack-y`) with `transition-[transform,opacity] duration-300 ease-out` so the pile subtly shifts and tucks away as the user progresses. `motion-reduce:transition-none` disables transitions when `prefers-reduced-motion` is enabled.
+- **Modified Files & Components**:
+  - `ever-since/app/timeline-client.tsx` (`TimelineClient` stack pile rendering and remaining-card logic)
+  - `ever-since/tests/timeline_ui.test.ts` (unit verification suite)
+

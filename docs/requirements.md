@@ -19,6 +19,14 @@ The base user can:
 - Insert the date to start the main flow (in case of incorrect date entries, receive escalating playful feedback across 3 attempts, followed by a 30-second cooldown lockout screen with live countdown timer)
 - Experience the main flow, including interacting with items and viewing every memory with automatic image preloading (preventing blank flashes) and click-to-play video playback with unmuted sound.
 - The user can either swipe (mobile) left/right or click on "<" or ">" arrow to go to prev/next memory
+- **Mobile Swipe Hint**:
+  - Automatically helps first-time or inactive mobile users discover the swipe gesture.
+  - Triggers strictly on mobile/touch devices (`(hover: none) and (pointer: coarse)` and viewport `<= 768px`) on the very first card of the main flow after 4 seconds of inactivity (only when more than one memory exists).
+  - Synchronizes a subtle ~24px left card peek revealing the next card edge with a sliding finger/hand indicator in the lower-middle card area.
+  - Runs for 2 cycles (~1.8s), pauses, and repeats every ~6 seconds up to 3 times per session if inactivity continues.
+  - Instantly dismisses on any user interaction (touch, pointer, scroll, click, keydown) with a fast 150ms fade.
+  - Successfully advancing to subsequent cards permanently disables the hint (persisted in `localStorage.setItem('swipeHintDismissed', 'true')`).
+  - Evaluated on client mount to prevent Next.js hydration mismatches, and fully complies with `prefers-reduced-motion` (replacing card motion with a gentle static fade).
 - At any point in the main flow, the base user can "rewind" (start from the beginning) and also go back
 
 ### Admin User

@@ -22,7 +22,7 @@ export default function Loading() {
         </div>
 
         {/* Card container with stack cue */}
-        <div className="relative w-[clamp(260px,calc(100svh-17rem),420px)] max-w-full">
+        <div className="relative w-[min(calc(100vw-3.25rem),calc((100dvh-17rem)*4/5),360px)] sm:w-[clamp(280px,calc((100dvh-16rem)*4/5),400px)] max-w-full">
           {/* Stack peek cue */}
           <div
             aria-hidden="true"
@@ -32,7 +32,7 @@ export default function Loading() {
           {/* Main memory card */}
           <div className="w-full rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_12px_40px_rgba(255,150,170,0.22)] overflow-hidden flex flex-col p-4 sm:p-5">
             {/* Media figure skeleton */}
-            <div className="relative w-full aspect-square rounded-[26px] md:rounded-[28px] overflow-hidden bg-[#FAF7F8] flex items-center justify-center shrink-0">
+            <div className="relative w-full aspect-[4/5] rounded-[26px] md:rounded-[28px] overflow-hidden bg-[#FAF7F8] flex items-center justify-center shrink-0">
               <Skeleton className="w-full h-full rounded-[26px] md:rounded-[28px]" />
             </div>
 
