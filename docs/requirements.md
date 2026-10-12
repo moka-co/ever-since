@@ -16,7 +16,7 @@ The base user can:
 - Insert a password given by the admin user -> this completes the log in
 - In case of incorrect password attempts, receive standard error feedback
 - Reload the page or close the page and still be logged in for 72 hours (from the login).
-- Insert the date to start the main flow (in case of incorrect date entries, receive escalating playful feedback across 3 attempts, followed by a 30-second cooldown lockout screen with live countdown timer)
+- Insert the date to start the main flow. The first 3 incorrect date entries receive escalating playful feedback; the 4th incorrect entry starts a 30-second cooldown lockout screen with a live countdown timer.
 - Experience the main flow, including interacting with items and viewing every memory with automatic image preloading (preventing blank flashes) and click-to-play video playback with unmuted sound.
 - The user can either swipe (mobile) left/right or click on "<" or ">" arrow to go to prev/next memory
 - **Mobile Swipe Hint**:
@@ -47,11 +47,11 @@ A memory may contain:
 - normal text with normal font
 - an image or a video (mutually exclusive)
 - 2D framing coordinates (`mediaPositionX` 0–100%, `mediaPositionY` 0–100%, default 50%) and zoom scale (`mediaScale` 1.0–3.0, default 1) for fitting photos cleanly inside cards
-- buttons that don't really do anything complex or simple, fun interactions. 
+- a Valentine Yes/No interaction when the memory type is `valentine`. A wider set of simple, fun buttons is planned for a future version.
 
-Note: buttons have a fixed vocabulary of behaviours, code then yourself and add them in an appropriate file. 
+**Planned:** A fixed vocabulary of button behaviors with a reusable registry and an authoring control in `/customize`. This general registry is not part of the current implementation.
 
-Buttons idea to implement:
+Ideas for that future registry:
 - Click on a pixelized seal (button) and then it makes small cutie seal noises
 - Play a sound effect like Michael Jackson "ye-he"
 - Yes/No button, move the no button away and playfully  force the partner to press "yes". After a fixed number of no tries, the button just disappear and only yes remains.
@@ -72,7 +72,7 @@ Buttons idea to implement:
 - Custom interactions like dodging yes/no button need non-mouse-dependent fallbacks.
 - Alt-text isn't required
 
-**Security**: basic rate limiting on `/login`, lock out after 5 failed attemps (the same IP cannot retry again, returns HTTP 403)
+**Security**: basic rate limiting on `/login`, with a persistent IP ban after 5 failed attempts. The same IP cannot retry and receives HTTP 403; the ban list survives container replacement in the persistent `data/` volume.
 
 **Reliability**: if a write to `db.json` failes, fail silently to the end user but log the error server-side for later review. Ideally since the admin user also checks the entire flow, it should catch up any errors before showing it to the other user. 
 
@@ -84,6 +84,6 @@ Buttons idea to implement:
 I named the project **Ever-Since** because it's a phrase people already say naturally — "ever since we met...", "ever since that day..." — so it reads as warm and sentimental without trying too hard. It's also intentionally open-ended: unlike a name tied to "one year" or "two years," it doesn't lock the project to a single milestone, meaning the same site and name can be reused for every future anniversary without ever feeling dated. The phrase also implies continuity, the sense of a story still unfolding, which fits the photo-reveal format especially well: each photo becomes its own "since then" moment in an ongoing narrative rather than a static gallery. This theme extends naturally into the UI itself, to start the year rewind, the lock screen headline can read something like "Ever since [date]..." with a pseudo-password field placed right below it, turning what would otherwise be a mundane authentication step into part of the emotional framing. The same flexibility carries through to the tagline, which can be customized per year ("Ever since that day...", "Ever since you said yes", "Ever since us") while the site name stays constant, letting the project grow and adapt alongside the relationship it's built for.
 
 ## Discarded features / out of scope
-- **Rate limiting detailed feedback & HTTP 429**: Originally, the app was supposed to return an HTTP 429 Too Many Requests status code with a `retryAfter` payload after 5 failed attempts.
-- **Cooldown Timer UI**: A dedicated playful lockout screen with an active real-time countdown timer before retrying is allowed.
-- **Escalating Feedback**: In case of incorrect password attempts, the UI would show escalating playful feedback (up to 5 attempts).
+- **Password-login attempt details and HTTP 429**: Returning remaining attempts or a `retryAfter` value was discarded to avoid revealing the attempt count. The password endpoint returns HTTP 401 for an incorrect secret and HTTP 403 once the IP is banned after 5 failures. The ban has no retry timer, so HTTP 429 and `retryAfter` would be misleading here; the separate date-gate cooldown still uses HTTP 429.
+- **Password-login cooldown timer UI**: A temporary cooldown after incorrect password attempts was discarded because the password login uses a permanent IP ban after 5 failed attempts instead. The anniversary-date gate retains its separate 30-second cooldown screen and live countdown.
+- **Escalating password feedback**: Playful messages that change after each incorrect password attempt were discarded to avoid revealing the attempt count. Password login shows standard error feedback; escalating playful messages remain part of the separate anniversary-date gate.

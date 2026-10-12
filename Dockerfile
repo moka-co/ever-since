@@ -1,7 +1,7 @@
 # ==============================================================================
 # Multi-stage Dockerfile for EverSince (repo root context)
 # Architecture: standard DOCKERFILE with multi-stage build (deps -> build -> runtime)
-# and two volumes on data/ and media/.
+# and persistent volumes on data/, media/, and logs/.
 # ==============================================================================
 
 # Stage 1: Dependencies (deps)
@@ -49,16 +49,16 @@ COPY --from=build /app/lib ./lib
 COPY --from=build /app/proxy.ts ./proxy.ts
 COPY --from=build /app/next.config.ts ./next.config.ts
 
-# Ensure data and media directories exist with proper permissions for nextjs user
-RUN mkdir -p /app/data /app/media && \
+# Ensure persistent directories exist with proper permissions for nextjs user
+RUN mkdir -p /app/data /app/media /app/logs && \
     chown -R nextjs:nodejs /app
 
 USER nextjs
 
 EXPOSE 3000
 
-# Mount persistent volumes for flat JSON database and uploaded media assets
-VOLUME ["/app/data", "/app/media", "app/logs/"]
+# Mount persistent volumes for the database, media assets, and application logs
+VOLUME ["/app/data", "/app/media", "/app/logs"]
 
 # On startup, issues 20-character secret, prints to stdout log, updates db, and starts Next.js
 CMD ["npx", "tsx", "scripts/init-secret.mjs"]

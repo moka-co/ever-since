@@ -785,7 +785,7 @@ export default function MemoriesManager({
                   onPointerMove={!isSelectedVideo ? handlePointerMove : undefined}
                   onPointerUp={!isSelectedVideo ? handlePointerUp : undefined}
                   onPointerCancel={!isSelectedVideo ? handlePointerUp : undefined}
-                  className={`relative w-full aspect-square max-w-[340px] mx-auto rounded-[28px] overflow-hidden bg-black/5 border border-[#F1E8EC] shadow-sm select-none overscroll-contain ${
+                  className={`relative w-full aspect-[4/5] max-w-[340px] mx-auto rounded-[28px] overflow-hidden bg-black/5 border border-[#F1E8EC] shadow-sm select-none overscroll-contain ${
                     !isSelectedVideo
                       ? 'cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow'
                       : ''

@@ -7,7 +7,7 @@ import { logger } from '../logger';
 export const MAX_FAILED_ATTEMPTS = 5;
 
 export function getBannedIpPath(): string {
-  return process.env.BANNED_IP_PATH ?? resolve(process.cwd(), 'banned_ip.log');
+  return process.env.BANNED_IP_PATH ?? resolve(process.cwd(), 'data', 'banned_ip.log');
 }
 
 const failedAttempts = new Map<string, number>();

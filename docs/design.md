@@ -45,7 +45,6 @@
 - **Contrast Rule (WCAG AA)**: 
   - Pastels and soft tints are strictly reserved for backgrounds, surface fills, and gentle decorative accents.
   - Text, icons, and interactive elements must use high-contrast saturated "anchor" tones (minimum 4.5:1 contrast for body copy; 3:1 for large headers and actionable buttons).
-- **Constraint**: **STRICTLY AVOID RED.** Accent tones must lean into warm terracottas, dusty roses, soft mauves, or warm peaches instead of standard alert/crimson red.
 
 ### Typography
 - **Font Family**: Nunito (a warm, rounded, humanist sans-serif combining high legibility with friendly personality).
@@ -76,7 +75,7 @@
   - Attempt 2: Gentle input shake with playful urgency copy: *"Why do you hate me, 2 tries left"*.
   - Attempt 3: Gentle input shake with final warning copy: *"You're almost single, 1 try left"*.
 - **Lockout Screen (Cooldown Period)**:
-  - After 3 failed attempts, activates a 30-second lockout cooldown.
+  - The first 3 failed date attempts show escalating feedback. The 4th failed attempt activates a 30-second lockout cooldown.
   - Displays a playful cooldown screen: *"Don't talk to me for [MM:SS]..."* alongside an active real-time countdown timer before retrying is automatically unlocked.
   - Logging: A warning log event (`date_cooldown_activated`) is emitted in backend logs strictly when the cooldown is activated. Intermediate failed attempts are not logged.
 
@@ -123,7 +122,7 @@
   - Status: [TO REFINE: Placeholder illustration and custom copy]
 
 ### Interactive "Fun" Buttons
-- **Concept**: Playful buttons inserted into specific memories to surprise the partner (e.g., a pixel seal making squeaking noises, sound bites, or a dodging Yes/No prompt).
+- **Current interaction**: A Valentine memory provides the dodging Yes/No prompt described below. Additional playful buttons, such as a pixel seal or sound bites, are ideas for a future version.
 - **Visuals**: Distinct playful aesthetic (bouncy keyframe animations, vibrant borders) contrasting with the surrounding calm aesthetic to invite interaction.
 - **Touch / Mobile Interaction (Dodging Yes/No)**:
   - On touch devices (where pointer hover does not exist), tapping "No" does not jump across the screen. Instead, each tap shrinks the "No" button while progressively scaling up the "Yes" button. After a fixed number of attempts, "No" disappears entirely, leaving only "Yes" spanning the full interaction area.
@@ -152,7 +151,7 @@
   - **Custom Upload Zone**: The native browser file input is replaced by cohesive, custom-styled upload buttons with clear format and size allowances.
 - **Memories Timeline & Workflow**:
   - **Enlarged Memory Preview & Interactive Photo Framing**:
-    - When media is selected in the Add/Edit Memory form, an enlarged card preview (`aspect-square` matching the main flow cards) renders prominently.
+    - When media is selected in the Add/Edit Memory form, an enlarged 4:5 card media preview (`aspect-[4/5]`) matches the main flow media frame.
     - **2D Click & Drag Panning**: For photos, clicking or dragging horizontally and vertically across the preview adjusts focal positioning (`mediaPositionX` and `mediaPositionY`, 0%–100%, default 50%).
     - **Photo Zoom Controls (Wheel & Toolbar)**: Admins can zoom photos from `1.0x` to `3.0x` using mouse wheel scrolling directly on the preview or using the inline zoom toolbar (`−`, `${scale}x`, `+`, `Reset`).
     - **Clean Minimalist Framing Cue**: Redundant sliders, preset buttons ("Left", "Center", "Right"), and percentage pills are removed, leaving a single clean overlay badge (`↔ Click or drag to move`).
@@ -168,8 +167,8 @@
   - **Quota Badges & Feedback**:
     - Distinct quota badges (e.g., "12 / 50 media files used", "8 / 50 memories used") provide real-time limits awareness.
     - **Inline Error & Retry Feedback**: If a media upload or database write fails, an inline error notification is displayed directly on the affected item or upload dropzone.
-- **Button Authoring**:
-  - Admins select fun buttons from a dropdown populated by the fixed component registry, rendering a straightforward form to configure button options.
+  - **Planned Button Authoring**:
+    - A future general button registry would provide a dropdown of fun buttons and a form to configure their options. The current dashboard offers Standard and Valentine memory types instead.
 - **Empty State (Admin Dashboard)**:
   - Displays a clean, dashed dropzone with a clear prompt: *"No memories yet. Upload your first photo or video above to begin building the timeline."*
   - Status: [TO REFINE: Onboarding guidance and empty state layout]

@@ -4,6 +4,7 @@ ever-since/data/*
 !ever-since/data/.gitkeep
 ever-since/media/*
 !ever-since/media/.gitkeep
+ever-since/logs/*
 .env*
 .git
 .gitignore

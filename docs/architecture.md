@@ -1,10 +1,10 @@
 ## Architecture
 **Overview**:
 - Single Next.Js App
-- `data/` contains the database
+- `data/` contains the database and persistent IP ban list
 - `lib/storage/` contains the schema and DB client
 - `media/` refers to the local filesystem
-- Docker: standard DOCKERFILE with multi-stage build (deps -> build -> runtime) and two volumes on `data/` and `media/`. A stdout captured by docker logs any errors.
+- Docker: a multi-stage Dockerfile (deps -> build -> runtime) with persistent volumes for `data/`, `media/`, and `logs/`. Startup messages go to stdout; application logs go to `logs/eversince.logs`.
 
 ### Repository Map
 ```
@@ -117,8 +117,11 @@ ever-since/
     │   ├── swipe_hint.test.ts
     │   ├── timeline_ui.test.ts
     │   └── valentine_memory.test.ts
-    ├── banned_ip.log              # Generated runtime IP lockout list
-    └── eversince.logs             # Generated runtime log file
+    ├── data/
+    │   ├── db.json                # Persistent database
+    │   └── banned_ip.log          # Persistent IP lockout list
+    └── logs/
+        └── eversince.logs         # Generated runtime log file
 ```
 
 **Tools and Libraries**
@@ -159,7 +162,7 @@ ever-since/
     - `db.ts` -> exports `readDb()` and `updateDb()`. Overridable via `DB_PATH` in tests. Assuming single user single writer.
 
 **Logging**:
-- Logs are saved to `eversince.logs`, and logs are always written asynchronous. Logs are in JSON.
+- Application logs are saved asynchronously as JSON to `logs/eversince.logs` by default (`/app/logs/eversince.logs` in Docker). Startup messages are written to stdout.
 - Logging is made ONLY in the backend. Frontend components aren't allowed to log anything with pino, however they can normally log with console.log
 
 The following info are logged:
@@ -174,9 +177,9 @@ Tests are NOT logged, the normal console.log that writes to stdout is enough.
 
 The containerization strategy for EverSince centers around a clean, multi-stage Dockerfile structured across deps, build, and runtime phases to deliver a minimal, secure, and production-ready image. In the initial dependency stage (deps), an Alpine-based Node.js runtime installs essential operating system libraries, including libc6-compat, which ensures native compatibility with Sharp's image processing binaries, followed by a clean install of all project dependencies via npm ci. The intermediate build stage then compiles the Next.js application in production mode with telemetry disabled, isolating the build toolchain and temporary compilation artifacts away from the eventual distribution layer.
 
-The final runtime stage builds upon a lean node:20-alpine environment and drops elevated root privileges by creating a dedicated unprivileged user and group (nextjs:nodejs). Only the minimal distribution assets—the compiled .next output, production dependencies, public assets, and runtime scripts—are copied into the working directory, keeping the overall attack surface and image footprint small. The container exposes port 3000 and is configured to bind to all network interfaces (0.0.0.0), allowing reverse proxies or local port forwarding to route external traffic smoothly into the Next.js web application.
+The final runtime stage builds upon a lean node:22-alpine environment and drops elevated root privileges by creating a dedicated unprivileged user and group (nextjs:nodejs). Only the minimal distribution assets—the compiled .next output, production dependencies, public assets, and runtime scripts—are copied into the working directory, keeping the overall attack surface and image footprint small. The container exposes port 3000 and is configured to bind to all network interfaces (0.0.0.0), allowing reverse proxies or local port forwarding to route external traffic smoothly into the Next.js web application.
 
-State persistence is decoupled from the ephemeral container lifecycle through two explicit volume mount points mapped to /app/data and /app/media. The data/ volume preserves the primary JSON database (db.json) across redeployments, while the media/ volume retains all uploaded photo and video binaries so that media storage remains persistent despite container restarts or image upgrades. File ownership and directory permissions across both mount points are assigned to the unprivileged nextjs user during image generation, ensuring seamless write operations by the background serialization queue without requiring root execution.
+State persistence is decoupled from the ephemeral container lifecycle through three volume mount points mapped to /app/data, /app/media, and /app/logs. The data/ volume preserves the JSON database (db.json) and IP ban list (banned_ip.log), the media/ volume retains uploaded photo and video binaries, and the logs/ volume retains application logs across container replacement. The image creates these directories for the unprivileged nextjs user; bind-mounted host directories also need writable ownership.
 
 Container lifecycle management and startup security are orchestrated through the project's startup script (scripts/init-secret.mjs), executed directly on boot via tsx. Upon container launch, this script dynamically issues a fresh, cryptographically strong 20-character secret, prints it immediately to standard output for capture by Docker logs, updates the internal database schema (`data/db.json`), and launches Next.js in production mode (next start). When Docker sends termination signals such as SIGTERM or SIGINT, the process intercepts the event and wipes the active secret from disk, cleanly invalidating all outstanding user sessions upon container shutdown as required by the security model.
 
@@ -200,7 +203,7 @@ Container lifecycle management and startup security are orchestrated through the
 #### IP Lockout Mechanism & `banned_ip.log`
 To mitigate brute-force password guessing, an automated lockout mechanism is enforced:
 - **Lockout Threshold**: 5 failed login attempts per client IP.
-- **Persistence (`banned_ip.log`)**: On the 5th failed login attempt, the client IP address is appended to `banned_ip.log` in the application root (newline-delimited).
+- **Persistence (`data/banned_ip.log`)**: On the 5th failed login attempt, the client IP address is appended to `data/banned_ip.log` (newline-delimited). The persistent `data/` volume keeps bans across container replacement.
 - **HTTP 403 Rejection**: Any request from an IP found in `banned_ip.log` to `/api/auth/login` or via the middleware proxy `proxy.ts` is rejected with HTTP 403 Forbidden.
 - **Counter Reset**: When an IP successfully logs in, its consecutive failed attempt counter is reset to 0.
 
@@ -217,9 +220,8 @@ Since auth is cookie-based, a requirement is `SameSite` (Lax) for the session co
 4. Filesystem Reconciliation: On login and on customize, a reconciliation process scans the `media/` directory and synchronizes it with `db.json`, automatically discovering and registering files placed directly on disk (measuring image dimensions via Sharp) and pruning stale records, respecting the 50-file quota.
 5. Serve via `/api/media/[id]` (serves registered media files directly from disk by ID or filename).
 
-### Buttons - fixed registry of buttons
-A fixed component registry under `lib/buttons/`. The key file is `registry.tsx` which map from e.g. ButtonSchema type to a React Component.
-Then, `/customize` renders a dropdown of registered types; selecting one renders a form built from that button's Zod shape (`react-hook-form` + `@hookform/resolvers/zod` keeps this mechanical).
+### Buttons - planned registry
+The current implementation supports `standard` and `valentine` memory types through the Zod schema and the Valentine component. A general component registry under `lib/buttons/` and a corresponding `/customize` authoring control are planned for a future version; neither exists in the current code.
 
 ### Data lifecycle
 Data is managed on local file system, deleting the photos would be the best thing to do whenever hosting on for example cloud, but for the suggested infrastructure for this project it is better to not annoy the user by deleting the volume i.e. the folder with the photos.

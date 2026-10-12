@@ -1,11 +1,12 @@
 # Initialization and Setup
 
 ## Prerequisites
-- Node.js (v18 or higher recommended)
-- npm or yarn
+- Node.js 22 and npm
 - Docker (optional, for production deployment)
 
 ## Local Development Setup
+
+Run the following commands from the repository root. The Next.js package is in the nested `ever-since/` directory.
 
 The project was initially scaffolded using the following command:
 ```bash
@@ -14,7 +15,8 @@ npx create-next-app@latest ever-since --typescript --tailwind --eslint --app --s
 
 1. **Install dependencies**
    ```bash
-   npm install
+   cd ever-since
+   npm ci
    ```
 
 2. **Run the development server**
@@ -30,26 +32,25 @@ On backend startup, a 20-character secret is generated and saved directly in `da
 
 ## Docker Setup (Production)
 The application is designed to be run using Docker with a multi-stage build (`deps` -> `build` -> `runtime`). 
-It requires two volumes to be mounted:
-- `data/` for the JSON database (`db.json`)
+It requires three persistent volumes to be mounted:
+- `data/` for the JSON database (`db.json`) and IP ban list (`banned_ip.log`)
 - `media/` for user-uploaded photos and videos
+- `logs/` for application logs (`eversince.logs`)
 
 ### Build Image
 ```bash
-# From repository root
-docker build -t ever-since .
-
-# Or from ever-since directory
-cd ever-since
+# From the repository root, where Dockerfile is located
 docker build -t ever-since .
 ```
 
 ### Run Container
 ```bash
+# From the repository root
 docker run -d \
   -p 3000:3000 \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/media:/app/media \
+  -v "$(pwd)/ever-since/data:/app/data" \
+  -v "$(pwd)/ever-since/media:/app/media" \
+  -v ever-since-logs:/app/logs \
   --name ever-since-app \
   ever-since
 ```

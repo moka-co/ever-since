@@ -2,12 +2,12 @@ import 'server-only';
 import pino from 'pino';
 import { resolve } from 'node:path';
 
-// Resolved log file path (defaults to eversince.logs in current working directory)
-export const LOG_FILE_PATH = process.env.LOG_FILE_PATH ?? resolve(process.cwd(), 'eversince.logs');
+// Resolved log file path (defaults to logs/eversince.logs in current working directory)
+export const LOG_FILE_PATH = process.env.LOG_FILE_PATH ?? resolve(process.cwd(), 'logs', 'eversince.logs');
 
 /**
  * Creates the pino logger instance.
- * - Logs are saved to eversince.logs.
+ * - Logs are saved to logs/eversince.logs by default.
  * - Logs are always written asynchronously (sync: false).
  * - Logs are formatted in JSON.
  * - In test mode (NODE_ENV === 'test' unless FORCE_LOG=true), logger is silent so tests are NOT logged to file.
