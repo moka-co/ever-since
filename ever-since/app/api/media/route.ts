@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { mkdir } from 'node:fs/promises';
 import { resolve, basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { readDb, updateDb } from '@/lib/storage/db';
+import { updateDb } from '@/lib/storage/db';
+import type { MediaRecord } from '@/lib/storage/schema';
 import {
   validateMediaConstraints,
   getExtension,
@@ -72,12 +73,101 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No media file provided' }, { status: 400 });
     }
 
-    const currentDb = await readDb();
+    let existingRecord: MediaRecord | null = null;
+    let validationError: string | null = null;
+    let processingError: string | null = null;
+    let createdRecord: MediaRecord | null = null;
 
-    // Check if a media record with this exact filename is already available
-    const existingRecord = currentDb.media.find(
-      (m) => m.filename.toLowerCase() === file.name.toLowerCase()
-    );
+    await updateDb(async (currentDb) => {
+      // Check if a media record with this exact filename is already available
+      const existing = currentDb.media.find(
+        (m) => m.filename.toLowerCase() === file.name.toLowerCase()
+      );
+      if (existing) {
+        existingRecord = existing;
+        return currentDb;
+      }
+
+      const error = validateMediaConstraints(
+        { name: file.name, size: file.size },
+        currentDb.media.length
+      );
+
+      if (error) {
+        validationError = error;
+        logger.warn(
+          {
+            event: 'media_validation_failed',
+            filename: file.name,
+            size: file.size,
+            error,
+          },
+          `Media validation failed: ${error}`
+        );
+        return currentDb;
+      }
+
+      logger.info(
+        {
+          event: 'media_validation_passed',
+          filename: file.name,
+          size: file.size,
+        },
+        `Media validation passed for ${file.name}`
+      );
+
+      // Preserve original filename, sanitizing directory separators
+      const cleanBasename = basename(file.name).replace(/[^\w\d._-]/g, '_');
+      const ext = getExtension(cleanBasename);
+      const nameWithoutExt = cleanBasename.slice(0, cleanBasename.length - ext.length);
+
+      let filename = cleanBasename;
+      // Handle collision if file already exists in db or on disk
+      if (currentDb.media.some((m) => m.filename.toLowerCase() === filename.toLowerCase())) {
+        filename = `${nameWithoutExt}-${Date.now()}${ext}`;
+      }
+
+      // Determine ID: follow UUID structure (or use filename's UUID if present)
+      const id = UUID_REGEX.test(nameWithoutExt)
+        ? nameWithoutExt.toLowerCase()
+        : randomUUID();
+
+      await mkdir(MEDIA_DIR, { recursive: true });
+      const targetFilePath = resolve(MEDIA_DIR, filename);
+
+      const fileBuffer = Buffer.from(await file.arrayBuffer());
+      let width: number | undefined;
+      let height: number | undefined;
+
+      if (!isVideo(filename)) {
+        try {
+          const processed = await processPhotoBuffer(fileBuffer);
+          await writeMediaFile(targetFilePath, processed.buffer, { id, filename, type: 'photo' });
+          width = processed.width;
+          height = processed.height;
+        } catch (sharpError) {
+          console.error('[API /api/media POST] Sharp processing failed:', sharpError);
+          processingError = 'Failed to process image file. The image may be corrupted.';
+          return currentDb;
+        }
+      } else {
+        await writeMediaFile(targetFilePath, fileBuffer, { id, filename, type: 'video' });
+      }
+
+      const newRecord: MediaRecord = {
+        id,
+        filename,
+        ...(width ? { width } : {}),
+        ...(height ? { height } : {}),
+      };
+      createdRecord = newRecord;
+
+      return {
+        ...currentDb,
+        media: [...currentDb.media, newRecord],
+      };
+    });
+
     if (existingRecord) {
       return NextResponse.json(
         {
@@ -88,89 +178,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validationError = validateMediaConstraints(
-      { name: file.name, size: file.size },
-      currentDb.media.length
-    );
-
     if (validationError) {
-      logger.warn(
-        {
-          event: 'media_validation_failed',
-          filename: file.name,
-          size: file.size,
-          error: validationError,
-        },
-        `Media validation failed: ${validationError}`
-      );
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    logger.info(
-      {
-        event: 'media_validation_passed',
-        filename: file.name,
-        size: file.size,
-      },
-      `Media validation passed for ${file.name}`
-    );
-
-    // Preserve original filename, sanitizing directory separators
-    const cleanBasename = basename(file.name).replace(/[^\w\d._-]/g, '_');
-    const ext = getExtension(cleanBasename);
-    const nameWithoutExt = cleanBasename.slice(0, cleanBasename.length - ext.length);
-
-    let filename = cleanBasename;
-    // Handle collision if file already exists in db or on disk
-    if (currentDb.media.some((m) => m.filename.toLowerCase() === filename.toLowerCase())) {
-      filename = `${nameWithoutExt}-${Date.now()}${ext}`;
+    if (processingError) {
+      return NextResponse.json({ error: processingError }, { status: 400 });
     }
-
-    // Determine ID: follow UUID structure (or use filename's UUID if present)
-    const id = UUID_REGEX.test(nameWithoutExt)
-      ? nameWithoutExt.toLowerCase()
-      : randomUUID();
-
-    await mkdir(MEDIA_DIR, { recursive: true });
-    const targetFilePath = resolve(MEDIA_DIR, filename);
-
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-    let width: number | undefined;
-    let height: number | undefined;
-
-    if (!isVideo(filename)) {
-      try {
-        const processed = await processPhotoBuffer(fileBuffer);
-        await writeMediaFile(targetFilePath, processed.buffer, { id, filename, type: 'photo' });
-        width = processed.width;
-        height = processed.height;
-      } catch (sharpError) {
-        console.error('[API /api/media POST] Sharp processing failed:', sharpError);
-        return NextResponse.json(
-          { error: 'Failed to process image file. The image may be corrupted.' },
-          { status: 400 }
-        );
-      }
-    } else {
-      await writeMediaFile(targetFilePath, fileBuffer, { id, filename, type: 'video' });
-    }
-
-    const newRecord = {
-      id,
-      filename,
-      ...(width ? { width } : {}),
-      ...(height ? { height } : {}),
-    };
-
-    await updateDb((db) => ({
-      ...db,
-      media: [...db.media, newRecord],
-    }));
 
     return NextResponse.json(
       {
         message: 'Media uploaded successfully',
-        media: newRecord,
+        media: createdRecord,
       },
       { status: 201 }
     );

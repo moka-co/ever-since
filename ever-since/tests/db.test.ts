@@ -1,11 +1,7 @@
-import { useTempDb, TestHarness } from './helpers';
+import { runTestSuite, runSuiteFiles, TEST_SUITES } from './helpers';
 import { randomUUID } from 'node:crypto';
 
-async function main() {
-  const harness = new TestHarness();
-  const temp = await useTempDb('12345678901234567890');
-
-  try {
+runTestSuite('Storage db.ts', async ({ harness }) => {
     const { updateDb, readDb } = await import('../lib/storage/db');
 
     console.log('--- Starting Storage db.ts Unit Tests (USE Convention & AAA Pattern) ---\n');
@@ -134,13 +130,36 @@ async function main() {
       harness.assert(shortMatch === false, 'Different length password returns false');
     }
 
-    harness.finish('Storage db.ts');
-  } finally {
-    await temp.cleanup();
-  }
-}
+    // Test Case 5: Suite runner execution order and exit-code semantics
+    {
+      console.log('\nTest 5: runSuiteFiles (Unit), when running suites (Scenario), should preserve order and stop on first non-zero exit code (Expectation)');
 
-main().catch((err) => {
-  console.error('Test execution error:', err);
-  process.exit(1);
+      harness.assert(
+        TEST_SUITES.length === 10 &&
+          TEST_SUITES[0] === 'tests/proxy.test.ts' &&
+          TEST_SUITES[9] === 'tests/valentine_memory.test.ts',
+        'TEST_SUITES preserves all 10 suites in exact execution order'
+      );
+
+      const executedPass: string[] = [];
+      const passExitCode = runSuiteFiles(['suiteA', 'suiteB', 'suiteC'], (suite) => {
+        executedPass.push(suite);
+        return 0;
+      });
+      harness.assert(
+        passExitCode === 0 && executedPass.join(',') === 'suiteA,suiteB,suiteC',
+        'runSuiteFiles executes all suites in order and returns 0 when all pass'
+      );
+
+      const executedFail: string[] = [];
+      const failExitCode = runSuiteFiles(['suiteA', 'suiteB', 'suiteC'], (suite) => {
+        executedFail.push(suite);
+        return suite === 'suiteB' ? 2 : 0;
+      });
+      harness.assert(
+        failExitCode === 2 && executedFail.join(',') === 'suiteA,suiteB',
+        'runSuiteFiles stops immediately on first failing suite and propagates its exit code'
+      );
+    }
 });
+

@@ -1,8 +1,6 @@
-import { TestHarness } from './helpers';
+import { runTestSuite } from './helpers';
 
-async function main() {
-  const harness = new TestHarness();
-
+runTestSuite('Timeline UI & Like Button Verification', async ({ harness }) => {
   console.log('--- Starting Timeline UI & Like Button Tests ---');
 
   // Test 1: Like button state machine logic
@@ -178,11 +176,5 @@ async function main() {
     const single = getStackState(0, 1);
     harness.assert(single.visibleBackCardsCount === 0, 'Shows 0 back cards when total memories is 1');
   }
-
-  harness.finish('Timeline UI & Like Button Verification');
-}
-
-main().catch((err) => {
-  console.error('Unhandled error in test:', err);
-  process.exit(1);
 });
+

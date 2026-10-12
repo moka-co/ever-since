@@ -13,11 +13,12 @@ import {
   DEFAULT_VALENTINE_NO_MESSAGES,
   clampMediaPosition,
   clampMediaScale,
+  getPhotoFramingStyle,
   type MemoryRecord,
   type MediaRecord,
   type MemoryType,
 } from '@/lib/storage/schema';
-import { MAX_MEDIA_COUNT, isVideo, validateMediaConstraints } from '@/lib/media/validation';
+import { MAX_MEDIA_COUNT, isVideo } from '@/lib/media/validation';
 import {
   getMobileValentineStepState,
   VALENTINE_MAX_NO_TAPS,
@@ -25,8 +26,10 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import Alert from './alert';
 import MediaPicker from './media-picker';
+import MediaThumbnail from './media-thumbnail';
+import { appendUniqueMedia, useMediaUpload } from './use-media-upload';
 
-function getMemoryFormState(memory?: MemoryRecord) {
+export function getMemoryFormState(memory?: MemoryRecord) {
   const type: MemoryType = memory?.type ?? 'standard';
   return {
     editingId: memory?.id ?? null,
@@ -78,7 +81,6 @@ export default function MemoriesManager({
   // Inline media upload state
   const [uploadedInSession, setUploadedInSession] = useState<MediaRecord[]>([]);
   const combinedMediaList = [...mediaList, ...uploadedInSession.filter(m => !mediaList.find(ml => ml.id === m.id))];
-  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Video preview volume state
@@ -216,53 +218,26 @@ export default function MemoriesManager({
     }
   }, [isSaved]);
 
+  const { isUploading: isUploadingMedia, uploadFile } = useMediaUpload({
+    onSuccess: (newMedia) => {
+      setUploadedInSession((prev) => appendUniqueMedia(prev, newMedia));
+      setMediaId(newMedia.id); // Auto-select the newly uploaded media
+    },
+    onError: (error) => {
+      setErrorMessage(error);
+    },
+  });
+
   async function handleInlineUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (combinedMediaList.length >= MAX_MEDIA_COUNT) {
-       setErrorMessage(`Media quota full. Cannot upload more than ${MAX_MEDIA_COUNT} files.`);
-       return;
-    }
-
-    const validationError = validateMediaConstraints(
-      { name: file.name, size: file.size },
-      combinedMediaList.length
-    );
-    if (validationError) {
-      setErrorMessage(validationError);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
     setErrorMessage(null);
-    setIsUploadingMedia(true);
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await fetch('/api/media', {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        setErrorMessage(data.error || 'Failed to upload media.');
-        return;
-      }
-
-      const newMedia = data.media as MediaRecord;
-      setUploadedInSession((prev) => [...prev, newMedia]);
-      setMediaId(newMedia.id); // Auto-select the newly uploaded media
-      router.refresh();
-    } catch {
-      setErrorMessage('Network error during upload.');
-    } finally {
-      setIsUploadingMedia(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
+    await uploadFile(
+      file,
+      combinedMediaList.length,
+      fileInputRef.current ?? event.target
+    );
   }
 
   function handleStartEdit(memory: MemoryRecord) {
@@ -835,10 +810,11 @@ export default function MemoriesManager({
                         src={`/api/media/${selectedMedia.filename}`}
                         alt="Preview"
                         draggable={false}
-                        style={{
-                          objectPosition: `${mediaPositionX}% ${mediaPositionY}%`,
-                          transform: `scale(${mediaScale})`,
-                        }}
+                        style={getPhotoFramingStyle({
+                          mediaPositionX,
+                          mediaPositionY,
+                          mediaScale,
+                        })}
                         className="w-full h-full object-cover select-none pointer-events-none transition-transform duration-75"
                       />
 
@@ -884,11 +860,15 @@ export default function MemoriesManager({
                       <button
                         type="button"
                         onClick={() => {
-                          setMediaScale(1);
-                          setMediaPositionX(50);
-                          setMediaPositionY(50);
+                          setMediaScale(DEFAULT_MEDIA_SCALE);
+                          setMediaPositionX(DEFAULT_MEDIA_POSITION_X);
+                          setMediaPositionY(DEFAULT_MEDIA_POSITION_Y);
                         }}
-                        disabled={mediaScale === 1 && mediaPositionX === 50 && mediaPositionY === 50}
+                        disabled={
+                          mediaScale === DEFAULT_MEDIA_SCALE &&
+                          mediaPositionX === DEFAULT_MEDIA_POSITION_X &&
+                          mediaPositionY === DEFAULT_MEDIA_POSITION_Y
+                        }
                         className="text-xs text-muted hover:text-foreground font-medium px-2 py-1 rounded-lg border border-[#F1E8EC] bg-white hover:bg-[#FAF7F8] transition-colors shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed ml-1"
                       >
                         Reset
@@ -1096,38 +1076,13 @@ export default function MemoriesManager({
                           💘
                         </span>
                       ) : filename ? (
-                        isVideo(filename) ? (
-                          <div className="relative w-full h-full">
-                            <video
-                              src={`/api/media/${filename}`}
-                              className="w-full h-full object-cover pointer-events-none"
-                              autoPlay
-                              loop
-                              muted
-                              playsInline
-                              onLoadedMetadata={(e) => {
-                                e.currentTarget.playbackRate = 1.5;
-                              }}
-                              ref={(el) => {
-                                if (el) el.playbackRate = 1.5;
-                              }}
-                            />
-                            <span className="absolute bottom-0.5 right-0.5 bg-black/60 text-[8px] text-white px-1 rounded uppercase font-bold pointer-events-none">
-                              Vid
-                            </span>
-                          </div>
-                        ) : (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={`/api/media/${filename}`}
-                            alt=""
-                            style={{
-                              objectPosition: `${item.mediaPositionX ?? 50}% ${item.mediaPositionY ?? 50}%`,
-                              transform: `scale(${item.mediaScale ?? 1})`,
-                            }}
-                            className="w-full h-full object-cover"
-                          />
-                        )
+                        <MediaThumbnail
+                          filename={filename}
+                          size="sm"
+                          mediaPositionX={item.mediaPositionX}
+                          mediaPositionY={item.mediaPositionY}
+                          mediaScale={item.mediaScale}
+                        />
                       ) : (
                         <span className="text-[10px] text-muted text-center px-1">No media</span>
                       )}

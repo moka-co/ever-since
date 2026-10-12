@@ -33,6 +33,30 @@ export function clampMediaScale(value: number): number {
   return Math.max(1, Math.min(3, Math.round(value * 10) / 10));
 }
 
+export interface PhotoFramingInput {
+  mediaPositionX?: number | null;
+  mediaPositionY?: number | null;
+  mediaScale?: number | null;
+}
+
+export interface PhotoFramingStyle {
+  objectPosition: string;
+  transform: string;
+}
+
+export function getPhotoFramingStyle(
+  framing?: PhotoFramingInput | null
+): PhotoFramingStyle {
+  const x = framing?.mediaPositionX ?? DEFAULT_MEDIA_POSITION_X;
+  const y = framing?.mediaPositionY ?? DEFAULT_MEDIA_POSITION_Y;
+  const scale = framing?.mediaScale ?? DEFAULT_MEDIA_SCALE;
+
+  return {
+    objectPosition: `${x}% ${y}%`,
+    transform: `scale(${scale})`,
+  };
+}
+
 export const valentineConfigSchema = z.object({
   yesLabel: z.string().trim().min(1).max(40).default(DEFAULT_VALENTINE_YES_LABEL),
   noLabel: z.string().trim().min(1).max(40).default(DEFAULT_VALENTINE_NO_LABEL),

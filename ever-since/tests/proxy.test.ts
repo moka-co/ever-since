@@ -1,16 +1,9 @@
-import { useTempDb, TestHarness } from './helpers';
+import { runTestSuite } from './helpers';
 import { NextRequest } from 'next/server';
 import { sealData } from 'iron-session';
 import { createHash } from 'node:crypto';
-import { join } from 'node:path';
 
-async function main() {
-  const harness = new TestHarness();
-  const temp = await useTempDb('12345678901234567890');
-  const testBannedIpPath = join(temp.dir, 'banned_ip.log');
-  process.env.BANNED_IP_PATH = testBannedIpPath;
-
-  try {
+runTestSuite('Proxy Verification', async ({ harness, temp }) => {
     const { proxy } = await import('../proxy');
     const { readDb } = await import('../lib/storage/db');
     const { SESSION_COOKIE_NAME, SESSION_TTL_SECONDS } = await import('../lib/auth/session');
@@ -124,7 +117,7 @@ async function main() {
 
     // 6. Verify banned IP is rejected with 403 Forbidden
     const { writeFile } = await import('node:fs/promises');
-    await writeFile(testBannedIpPath, '192.168.1.99\n', 'utf8');
+    await writeFile(temp.bannedIpPath, '192.168.1.99\n', 'utf8');
 
     const bannedReq = new NextRequest(new URL('http://localhost:3000/api/config'), {
       headers: {
@@ -141,15 +134,5 @@ async function main() {
       bannedBody.error === 'IP is locked out',
       `Banned IP returns { error: 'IP is locked out' }`
     );
-
-    harness.finish('Proxy Verification');
-  } finally {
-    delete process.env.BANNED_IP_PATH;
-    await temp.cleanup();
-  }
-}
-
-main().catch((err) => {
-  console.error('Test execution error:', err);
-  process.exit(1);
 });
+

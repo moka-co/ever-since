@@ -28,21 +28,28 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
-    const db = await readDb();
-    if (db.memories.length >= MAX_MEMORIES_COUNT) {
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const newMemory = buildMemoryRecord(randomUUID(), body);
+    let quotaExceeded = false;
+
+    await updateDb((currentDb) => {
+      if (currentDb.memories.length >= MAX_MEMORIES_COUNT) {
+        quotaExceeded = true;
+        return currentDb;
+      }
+
+      return {
+        ...currentDb,
+        memories: [...currentDb.memories, newMemory],
+      };
+    });
+
+    if (quotaExceeded) {
       return NextResponse.json(
         { error: `Memories limit exceeded. A maximum of ${MAX_MEMORIES_COUNT} memories is allowed.` },
         { status: 400 }
       );
     }
-
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const newMemory = buildMemoryRecord(randomUUID(), body);
-
-    await updateDb((currentDb) => ({
-      ...currentDb,
-      memories: [...currentDb.memories, newMemory],
-    }));
 
     return NextResponse.json(
       {

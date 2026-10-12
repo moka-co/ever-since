@@ -1,4 +1,4 @@
-import { useTempDb, TestHarness } from './helpers';
+import { runTestSuite } from './helpers';
 import {
   memorySchema,
   buildMemoryRecord,
@@ -20,11 +20,7 @@ import {
   type BoxRect,
 } from '../components/valentine-memory';
 
-async function main() {
-  const harness = new TestHarness();
-  const temp = await useTempDb('12345678901234567890');
-
-  try {
+runTestSuite('Valentine Special Memory', async ({ harness }) => {
     const { readDb } = await import('../lib/storage/db');
     const { POST: postMemory } = await import('../app/api/memories/route');
     const { PUT: putMemory } = await import('../app/api/memories/[id]/route');
@@ -412,14 +408,5 @@ async function main() {
         'Reduced motion still hides No after 5 taps'
       );
     }
-
-    harness.finish('Valentine Special Memory');
-  } finally {
-    await temp.cleanup();
-  }
-}
-
-main().catch((err) => {
-  console.error('Test execution fatal error:', err);
-  process.exit(1);
 });
+

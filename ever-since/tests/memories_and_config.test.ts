@@ -1,10 +1,6 @@
-import { useTempDb, TestHarness } from './helpers';
+import { runTestSuite } from './helpers';
 
-async function main() {
-  const harness = new TestHarness();
-  const temp = await useTempDb('12345678901234567890');
-
-  try {
+runTestSuite('Memories & Customize Config', async ({ harness }) => {
     const { readDb, updateDb } = await import('../lib/storage/db');
     const { GET: getConfig, PUT: putConfig } = await import('../app/api/config/route');
     const { GET: getMemories, POST: postMemory } = await import('../app/api/memories/route');
@@ -567,13 +563,191 @@ async function main() {
       harness.assert(overflowData.error.includes('Memories limit exceeded'), 'Error message informs of memories limit');
     }
 
-    harness.finish('Memories & Customize Config');
-  } finally {
-    await temp.cleanup();
-  }
-}
+    // Test 12: Concurrent config PUTs and memory POSTs serialize checks and merges inside updateDb
+    {
+      console.log('\nTest 12: Concurrent config PUTs and memory POSTs serialize checks and merges inside updateDb');
+      await updateDb((current) => ({
+        ...current,
+        config: { anniversaryDate: '', sealMediaId: null },
+        memories: current.memories.slice(0, 49),
+      }));
 
-main().catch((err) => {
-  console.error('Test execution fatal error:', err);
-  process.exit(1);
+      const concurrentDateReq = new Request('http://localhost:3000/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ anniversaryDate: '2025-06-01' }),
+      });
+      const concurrentSealReq = new Request('http://localhost:3000/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sealMediaId: 'seal-test-1' }),
+      });
+
+      const [dateRes, sealRes] = await Promise.all([
+        putConfig(concurrentDateReq),
+        putConfig(concurrentSealReq),
+      ]);
+      harness.assert(
+        dateRes.status === 200 && sealRes.status === 200,
+        'Both concurrent PUT /api/config requests succeeded with 200'
+      );
+      const mergedDb = await readDb();
+      harness.assert(
+        mergedDb.config.anniversaryDate === '2025-06-01' &&
+          mergedDb.config.sealMediaId === 'seal-test-1',
+        `Concurrent PUT /api/config preserved both anniversaryDate (${mergedDb.config.anniversaryDate}) and sealMediaId (${mergedDb.config.sealMediaId})`
+      );
+
+      const memReqA = new Request('http://localhost:3000/api/memories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ heading: 'Concurrent A', text: 'Slot 50' }),
+      });
+      const memReqB = new Request('http://localhost:3000/api/memories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ heading: 'Concurrent B', text: 'Overflow 51' }),
+      });
+
+      const [memResA, memResB] = await Promise.all([
+        postMemory(memReqA),
+        postMemory(memReqB),
+      ]);
+      const statuses = [memResA.status, memResB.status].sort();
+      harness.assert(
+        statuses[0] === 201 && statuses[1] === 400,
+        `Concurrent POST /api/memories at 49/50 accepted one (201) and rejected one (400), got ${statuses.join(', ')}`
+      );
+      const rejectedRes = memResA.status === 400 ? memResA : memResB;
+      const rejectedBody = await rejectedRes.json();
+      harness.assert(
+        rejectedBody.error === 'Memories limit exceeded. A maximum of 50 memories is allowed.',
+        `Rejected concurrent memory POST used quota error message (got "${rejectedBody.error}")`
+      );
+      const finalMemDb = await readDb();
+      harness.assert(
+        finalMemDb.memories.length === 50,
+        `Database memories count remained strictly 50 after concurrent POSTs`
+      );
+    }
+
+    // Test 13: Shared getPhotoFramingStyle & matching position and zoom after saving and reopening a memory
+    {
+      console.log('\nTest 13: Shared getPhotoFramingStyle & matching position and zoom after saving and reopening a memory');
+      const { getPhotoFramingStyle } = await import('../lib/storage/schema');
+      const { getMemoryFormState } = await import('../app/customize/memories-manager');
+      const { getMediaThumbnailProps } = await import('../app/customize/media-thumbnail');
+
+      // Free one slot so we can create and reopen a memory
+      await updateDb((current) => ({
+        ...current,
+        memories: current.memories.slice(0, 10),
+      }));
+
+      // Default fallback when framing is omitted or null
+      const defaultFraming = getPhotoFramingStyle(null);
+      harness.assert(
+        typeof getPhotoFramingStyle === 'function' &&
+          defaultFraming.objectPosition === '50% 50%' &&
+          defaultFraming.transform === 'scale(1)',
+        'getPhotoFramingStyle returns default 50% 50% and scale(1) when input is null/omitted'
+      );
+
+      // 1. Save a new memory with custom position and zoom
+      const createFramedReq = new Request('http://localhost:3000/api/memories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          heading: 'Framed Memory',
+          text: 'Custom crop and zoom',
+          mediaId: 'seal-test-1',
+          mediaPositionX: 28,
+          mediaPositionY: 74,
+          mediaScale: 2.4,
+        }),
+      });
+      const createFramedRes = await postMemory(createFramedReq);
+      harness.assert(createFramedRes.status === 201, 'Created framed memory with 201');
+      const { memory: createdFramed } = await createFramedRes.json();
+
+      // Reopen via GET /api/memories and hydrate editor form state
+      const listRes1 = await getMemories();
+      const list1 = await listRes1.json();
+      const savedMemory = list1.find((m: { id: string }) => m.id === createdFramed.id);
+      const reopenedForm = getMemoryFormState(savedMemory);
+
+      harness.assert(
+        reopenedForm.mediaPositionX === 28 &&
+          reopenedForm.mediaPositionY === 74 &&
+          reopenedForm.mediaScale === 2.4,
+        'Reopened memory form state preserves saved X (28), Y (74), and scale (2.4)'
+      );
+
+      const editorPreviewStyle = getPhotoFramingStyle(reopenedForm);
+      const timelineCardStyle = getPhotoFramingStyle(savedMemory);
+      const listThumbStyle = getMediaThumbnailProps({
+        filename: 'seal.jpg',
+        size: 'sm',
+        mediaPositionX: savedMemory.mediaPositionX,
+        mediaPositionY: savedMemory.mediaPositionY,
+        mediaScale: savedMemory.mediaScale,
+      }).imageStyle;
+
+      harness.assert(
+        editorPreviewStyle.objectPosition === '28% 74%' &&
+          editorPreviewStyle.transform === 'scale(2.4)',
+        'Editor preview style matches 28% 74% and scale(2.4)'
+      );
+      harness.assert(
+        timelineCardStyle.objectPosition === editorPreviewStyle.objectPosition &&
+          timelineCardStyle.transform === editorPreviewStyle.transform &&
+          listThumbStyle?.objectPosition === editorPreviewStyle.objectPosition &&
+          listThumbStyle?.transform === editorPreviewStyle.transform,
+        'Editor preview, memory list thumbnail, and timeline card styles match after saving and reopening'
+      );
+
+      // 2. Edit framing, save via PUT, and reopen again
+      const updateFramedReq = new Request(
+        `http://localhost:3000/api/memories/${createdFramed.id}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mediaPositionX: 82,
+            mediaPositionY: 15,
+            mediaScale: 1.8,
+          }),
+        }
+      );
+      const updateFramedRes = await putMemory(updateFramedReq, {
+        params: Promise.resolve({ id: createdFramed.id }),
+      });
+      harness.assert(updateFramedRes.status === 200, 'Updated framed memory with 200');
+
+      const listRes2 = await getMemories();
+      const list2 = await listRes2.json();
+      const updatedSavedMemory = list2.find((m: { id: string }) => m.id === createdFramed.id);
+      const reopenedUpdatedForm = getMemoryFormState(updatedSavedMemory);
+
+      const updatedPreviewStyle = getPhotoFramingStyle(reopenedUpdatedForm);
+      const updatedTimelineStyle = getPhotoFramingStyle(updatedSavedMemory);
+      const updatedThumbStyle = getMediaThumbnailProps({
+        filename: 'seal.jpg',
+        size: 'sm',
+        mediaPositionX: updatedSavedMemory.mediaPositionX,
+        mediaPositionY: updatedSavedMemory.mediaPositionY,
+        mediaScale: updatedSavedMemory.mediaScale,
+      }).imageStyle;
+
+      harness.assert(
+        updatedPreviewStyle.objectPosition === '82% 15%' &&
+          updatedPreviewStyle.transform === 'scale(1.8)' &&
+          updatedTimelineStyle.objectPosition === '82% 15%' &&
+          updatedTimelineStyle.transform === 'scale(1.8)' &&
+          updatedThumbStyle?.objectPosition === '82% 15%' &&
+          updatedThumbStyle?.transform === 'scale(1.8)',
+        'Updated position (82% 15%) and zoom (1.8x) match across editor preview, list thumbnail, and timeline after reopening'
+      );
+    }
 });
+

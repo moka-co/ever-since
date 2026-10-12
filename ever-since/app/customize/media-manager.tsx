@@ -3,20 +3,53 @@
 import { useState, useRef, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { MediaRecord } from '@/lib/storage/schema';
-import { MAX_MEDIA_COUNT, isVideo, validateMediaConstraints } from '@/lib/media/validation';
+import { MAX_MEDIA_COUNT, isVideo } from '@/lib/media/validation';
 import { Skeleton } from '@/components/ui/skeleton';
 import Alert from './alert';
+import MediaThumbnail from './media-thumbnail';
+import { appendUniqueMedia, useMediaUpload } from './use-media-upload';
+
+export function partitionMediaLibrary(mediaList: MediaRecord[]): {
+  photos: MediaRecord[];
+  videos: MediaRecord[];
+} {
+  const photos: MediaRecord[] = [];
+  const videos: MediaRecord[] = [];
+  for (const item of mediaList) {
+    if (isVideo(item.filename)) {
+      videos.push(item);
+    } else {
+      photos.push(item);
+    }
+  }
+  return { photos, videos };
+}
+
+export function collectUsedMediaIds(
+  memories: { mediaId?: string | null }[],
+  sealMediaId?: string | null
+): Set<string> {
+  const used = new Set<string>();
+  for (const memory of memories) {
+    if (memory.mediaId) {
+      used.add(memory.mediaId);
+    }
+  }
+  if (sealMediaId) {
+    used.add(sealMediaId);
+  }
+  return used;
+}
 
 interface MediaManagerProps {
   initialMedia: MediaRecord[];
-  usedMediaIds?: string[];
+  usedMediaIds?: Iterable<string>;
 }
 
 export default function MediaManager({ initialMedia, usedMediaIds = [] }: MediaManagerProps) {
   const router = useRouter();
   const [mediaList, setMediaList] = useState<MediaRecord[]>(initialMedia);
   const [version, setVersion] = useState<number>(0);
-  const [isUploading, setIsUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -24,8 +57,20 @@ export default function MediaManager({ initialMedia, usedMediaIds = [] }: MediaM
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isQuotaFull = mediaList.length >= MAX_MEDIA_COUNT;
 
-  const photos = mediaList.filter((m) => !isVideo(m.filename));
-  const videos = mediaList.filter((m) => isVideo(m.filename));
+  const usedMediaIdSet =
+    usedMediaIds instanceof Set ? usedMediaIds : new Set(usedMediaIds);
+  const { photos, videos } = partitionMediaLibrary(mediaList);
+
+  const { isUploading, uploadFile } = useMediaUpload({
+    onSuccess: (newMedia) => {
+      setMediaList((prev) => appendUniqueMedia(prev, newMedia));
+      setVersion(Date.now());
+      setSuccessMessage(`Successfully uploaded ${newMedia.filename}`);
+    },
+    onError: (error) => {
+      setErrorMessage(error);
+    },
+  });
 
   async function handleUpload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,54 +78,8 @@ export default function MediaManager({ initialMedia, usedMediaIds = [] }: MediaM
     setSuccessMessage(null);
 
     const input = fileInputRef.current;
-    if (!input || !input.files || input.files.length === 0) {
-      setErrorMessage('Please select a photo or video to upload.');
-      return;
-    }
-
-    const file = input.files[0];
-    const validationError = validateMediaConstraints(
-      { name: file.name, size: file.size },
-      mediaList.length
-    );
-    if (validationError) {
-      setErrorMessage(validationError);
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    setIsUploading(true);
-
-    try {
-      const response = await fetch('/api/media', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setErrorMessage(data.error || 'Failed to upload media.');
-        return;
-      }
-
-      const newMedia = data.media as MediaRecord;
-      const updated = [...mediaList, newMedia];
-      setMediaList(updated);
-      setVersion(Date.now());
-      router.refresh();
-      setSuccessMessage(`Successfully uploaded ${newMedia.filename}`);
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    } catch {
-      setErrorMessage('A network error occurred while uploading. Please try again.');
-    } finally {
-      setIsUploading(false);
-    }
+    const file = input?.files?.[0];
+    await uploadFile(file, mediaList.length, input);
   }
 
   async function handleDelete(id: string) {
@@ -116,43 +115,18 @@ export default function MediaManager({ initialMedia, usedMediaIds = [] }: MediaM
   }
 
   function renderMediaTile(item: MediaRecord) {
-    const video = isVideo(item.filename);
-    const isUnused = !usedMediaIds.includes(item.id);
-    const mediaUrl = version ? `/api/media/${item.filename}?t=${version}` : `/api/media/${item.filename}`;
+    const isUnused = !usedMediaIdSet.has(item.id);
 
     return (
       <li
         key={item.id}
         className="group relative aspect-square rounded-2xl border border-[#F1E8EC] bg-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-all"
       >
-        {video ? (
-          <div className="relative w-full h-full bg-black/10">
-            <video
-              src={mediaUrl}
-              autoPlay
-              loop
-              muted
-              playsInline
-              onLoadedMetadata={(e) => {
-                e.currentTarget.playbackRate = 1.5;
-              }}
-              ref={(el) => {
-                if (el) el.playbackRate = 1.5;
-              }}
-              className="w-full h-full object-cover pointer-events-none"
-            />
-            <span className="absolute bottom-1.5 left-1.5 bg-black/60 backdrop-blur-xs text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider pointer-events-none">
-              Video
-            </span>
-          </div>
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={mediaUrl}
-            alt={item.filename}
-            className="w-full h-full object-cover"
-          />
-        )}
+        <MediaThumbnail
+          filename={item.filename}
+          version={version}
+          alt={item.filename}
+        />
 
         {/* Visual indicator for unused media */}
         {isUnused && (

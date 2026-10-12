@@ -1,22 +1,18 @@
-import { useTempDb, TestHarness } from './helpers';
+import { runTestSuite } from './helpers';
 import sharp from 'sharp';
 import { NextRequest } from 'next/server';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-async function main() {
-  const harness = new TestHarness();
-  const temp = await useTempDb('12345678901234567890');
-
-  try {
+runTestSuite('Media Constraints & Operations', async ({ harness, temp }) => {
+    const validationModule = await import('../lib/media/validation');
     const {
       validateMediaConstraints,
-      getNextMediaId,
       isVideo,
       getMimeType,
       MAX_PHOTO_SIZE_BYTES,
       MAX_VIDEO_SIZE_BYTES,
-    } = await import('../lib/media/validation');
+    } = validationModule;
     const { processPhotoBuffer } = await import('../lib/media/processor');
     const { readDb, updateDb } = await import('../lib/storage/db');
 
@@ -105,21 +101,30 @@ async function main() {
       );
     }
 
-    // Test 7: Helper functions
+    // Test 7: Helper functions & legacy media ID compatibility
     {
-      console.log('\nTest 7: MediaHelperFunctions (Unit), when called with sample filenames (Scenario), should return expected kinds, MIME types, and IDs (Expectation)');
+      console.log('\nTest 7: MediaHelperFunctions (Unit), when called with sample filenames (Scenario), should return expected kinds and MIME types without obsolete numeric ID generator (Expectation)');
       harness.assert(isVideo('photo.png') === false, 'photo.png identified as photo');
       harness.assert(isVideo('clip.webm') === true, 'clip.webm identified as video');
       harness.assert(isVideo('video.mov') === true, 'video.mov identified as video');
 
       harness.assert(getMimeType('1.jpg') === 'image/jpeg', '1.jpg mapped to image/jpeg');
       harness.assert(getMimeType('2.mp4') === 'video/mp4', '2.mp4 mapped to video/mp4');
+      harness.assert(
+        !('getNextMediaId' in validationModule),
+        'Obsolete getNextMediaId numeric ID generator is removed'
+      );
 
-      const nextId1 = getNextMediaId([]);
-      harness.assert(nextId1 === '1', `Initial next media ID is 1 (got: ${nextId1})`);
-
-      const nextId2 = getNextMediaId([{ id: '1' }, { id: '3' }, { id: '2' }]);
-      harness.assert(nextId2 === '4', `Next media ID after [1, 3, 2] is 4 (got: ${nextId2})`);
+      await updateDb((current) => ({
+        ...current,
+        media: [{ id: '1', filename: '1.jpg' }],
+      }));
+      const dbWithLegacyId = await readDb();
+      harness.assert(
+        dbWithLegacyId.media.length === 1 && dbWithLegacyId.media[0].id === '1',
+        'Existing numeric media IDs in db.json remain compatible'
+      );
+      await updateDb((current) => ({ ...current, media: [] }));
     }
 
     // Test 8: Sharp Photo Processing
@@ -330,15 +335,378 @@ async function main() {
       harness.assert(postVideoData.media.filename === 'memory-video.mp4', 'Uploaded video preserves original filename');
       const videoDb = await readDb();
       harness.assert(videoDb.media.some((m) => m.filename === 'memory-video.mp4'), 'Video record is saved in database');
+
+      // Test 15: Shared dashboard MediaUploadController (library upload, inline upload, existing file, full quota, input reset)
+      console.log('\nTest 15: Shared dashboard MediaUploadController (library upload, inline upload, existing file, full quota, input reset)');
+      const {
+        MediaUploadController,
+        appendUniqueMedia,
+        NO_MEDIA_FILE_ERROR,
+        UPLOAD_NETWORK_ERROR,
+      } = await import('../app/customize/use-media-upload');
+
+      let fetchCalls = 0;
+      const routeFetch: typeof fetch = async (_input, init) => {
+        fetchCalls += 1;
+        const req = new NextRequest('http://localhost:3000/api/media', {
+          method: init?.method || 'POST',
+          body: init?.body as BodyInit,
+        });
+        return await postMedia(req);
+      };
+
+      // A) Library upload outcome (adds to library, sets success message, refreshes, resets input)
+      let libraryList = (await readDb()).media;
+      let librarySuccessMsg: string | null = null;
+      let libraryRefreshes = 0;
+      const libraryInput = { value: 'C:\\fakepath\\library-upload.jpg' };
+
+      const libraryUploader = new MediaUploadController({
+        fetchImpl: routeFetch,
+        onRefresh: () => {
+          libraryRefreshes += 1;
+        },
+        onSuccess: (media) => {
+          libraryList = appendUniqueMedia(libraryList, media);
+          librarySuccessMsg = `Successfully uploaded ${media.filename}`;
+        },
+      });
+
+      const libraryFile = new File([photoBuffer], 'library-upload.jpg', {
+        type: 'image/jpeg',
+      });
+      const uploadedLibMedia = await libraryUploader.uploadFile(
+        libraryFile,
+        libraryList.length,
+        libraryInput
+      );
+      harness.assert(
+        uploadedLibMedia !== null && uploadedLibMedia.filename === 'library-upload.jpg',
+        'Library upload returns uploaded MediaRecord'
+      );
+      harness.assert(
+        libraryList.some((m) => m.id === uploadedLibMedia?.id),
+        'Library upload adds new item to library list'
+      );
+      harness.assert(
+        librarySuccessMsg === 'Successfully uploaded library-upload.jpg',
+        'Library upload sets success message'
+      );
+      harness.assert(libraryRefreshes === 1, 'Library upload triggers router refresh');
+      harness.assert(libraryInput.value === '', 'Library upload resets file input value');
+
+      // B) Inline upload outcome (adds to session list, auto-selects mediaId, refreshes, resets input)
+      let sessionList: typeof libraryList = [];
+      let selectedMediaId = '';
+      let inlineErrorMsg: string | null = null;
+      let inlineRefreshes = 0;
+      const inlineInput = { value: 'C:\\fakepath\\inline-upload.jpg' };
+
+      const inlineUploader = new MediaUploadController({
+        fetchImpl: routeFetch,
+        onRefresh: () => {
+          inlineRefreshes += 1;
+        },
+        onSuccess: (media) => {
+          sessionList = appendUniqueMedia(sessionList, media);
+          selectedMediaId = media.id;
+        },
+        onError: (err) => {
+          inlineErrorMsg = err;
+        },
+      });
+
+      const inlineFile = new File([photoBuffer], 'inline-upload.jpg', {
+        type: 'image/jpeg',
+      });
+      const uploadedInlineMedia = await inlineUploader.uploadFile(
+        inlineFile,
+        libraryList.length,
+        inlineInput
+      );
+      harness.assert(
+        uploadedInlineMedia !== null && selectedMediaId === uploadedInlineMedia.id,
+        'Inline upload automatically selects newly uploaded media ID'
+      );
+      harness.assert(
+        sessionList.length === 1 && sessionList[0].id === uploadedInlineMedia?.id,
+        'Inline upload adds media to session list'
+      );
+      harness.assert(inlineRefreshes === 1, 'Inline upload triggers router refresh');
+      harness.assert(inlineInput.value === '', 'Inline upload resets file input value');
+
+      // C) Existing file upload (returns existing record without duplicating in list, selects it on inline upload)
+      const countBeforeExisting = libraryList.length;
+      const existingInput = { value: 'C:\\fakepath\\library-upload.jpg' };
+      const existingMediaResult = await libraryUploader.uploadFile(
+        libraryFile,
+        libraryList.length,
+        existingInput
+      );
+      harness.assert(
+        existingMediaResult !== null && existingMediaResult.id === uploadedLibMedia?.id,
+        'Uploading existing file returns the existing MediaRecord'
+      );
+      harness.assert(
+        libraryList.length === countBeforeExisting,
+        'Uploading existing file does not duplicate entry in library list'
+      );
+      harness.assert(
+        existingInput.value === '',
+        'Uploading existing file still resets file input value'
+      );
+
+      // D) Full quota (50 items) uses consistent validateMediaConstraints message and resets input without calling fetch
+      const callsBeforeQuota = fetchCalls;
+      const quotaInput = { value: 'C:\\fakepath\\overflow.jpg' };
+      const quotaResult = await inlineUploader.uploadFile(
+        new File([photoBuffer], 'overflow.jpg', { type: 'image/jpeg' }),
+        50,
+        quotaInput
+      );
+      const expectedQuotaError = validateMediaConstraints(
+        { name: 'overflow.jpg', size: photoBuffer.length },
+        50
+      );
+      harness.assert(quotaResult === null, 'Full quota upload returns null');
+      harness.assert(
+        fetchCalls === callsBeforeQuota,
+        'Full quota upload is blocked before calling POST /api/media'
+      );
+      harness.assert(
+        inlineUploader.getState().errorMessage === expectedQuotaError &&
+          inlineErrorMsg === expectedQuotaError,
+        'Full quota uses consistent validateMediaConstraints error copy'
+      );
+      harness.assert(
+        quotaInput.value === '',
+        'Full quota validation failure resets file input value'
+      );
+
+      // E) Missing file & network error reset input and report consistent errors
+      const missingFileResult = await libraryUploader.uploadFile(undefined, 1);
+      harness.assert(
+        missingFileResult === null &&
+          libraryUploader.getState().errorMessage === NO_MEDIA_FILE_ERROR,
+        'Missing file sets NO_MEDIA_FILE_ERROR'
+      );
+
+      const netFailInput = { value: 'C:\\fakepath\\netfail.jpg' };
+      const netFailUploader = new MediaUploadController({
+        fetchImpl: async () => {
+          throw new Error('Network down');
+        },
+      });
+      const netFailResult = await netFailUploader.uploadFile(
+        libraryFile,
+        1,
+        netFailInput
+      );
+      harness.assert(
+        netFailResult === null &&
+          netFailUploader.getState().errorMessage === UPLOAD_NETWORK_ERROR &&
+          netFailInput.value === '',
+        'Network failure sets UPLOAD_NETWORK_ERROR and resets file input'
+      );
+
+      // Test 16: Concurrent POST /api/media serializes quota checks and existing-file lookup inside updateDb
+      console.log('\nTest 16: Concurrent POST /api/media serializes quota checks and existing-file lookup inside updateDb');
+      const fillerMedia = Array.from({ length: 49 }, (_, idx) => ({
+        id: `fill-${idx + 1}`,
+        filename: `fill-${idx + 1}.jpg`,
+      }));
+      await updateDb((current) => ({
+        ...current,
+        media: fillerMedia,
+      }));
+
+      const formA = new FormData();
+      formA.append('file', new File([photoBuffer], 'concurrent-a.jpg', { type: 'image/jpeg' }));
+      const formB = new FormData();
+      formB.append('file', new File([photoBuffer], 'concurrent-b.jpg', { type: 'image/jpeg' }));
+
+      const [concResA, concResB] = await Promise.all([
+        postMedia(new NextRequest('http://localhost:3000/api/media', { method: 'POST', body: formA })),
+        postMedia(new NextRequest('http://localhost:3000/api/media', { method: 'POST', body: formB })),
+      ]);
+      const concStatuses = [concResA.status, concResB.status].sort();
+      harness.assert(
+        concStatuses[0] === 201 && concStatuses[1] === 400,
+        `Concurrent POST /api/media at 49/50 accepted one (201) and rejected one (400), got ${concStatuses.join(', ')}`
+      );
+      const rejectedMediaRes = concResA.status === 400 ? concResA : concResB;
+      const rejectedMediaData = await rejectedMediaRes.json();
+      harness.assert(
+        rejectedMediaData.error === expectedQuotaError,
+        `Concurrent rejected media POST used validateMediaConstraints quota error (got "${rejectedMediaData.error}")`
+      );
+      const dbAfterConcurrentMedia = await readDb();
+      harness.assert(
+        dbAfterConcurrentMedia.media.length === 50,
+        `Database media count remained strictly 50 after concurrent POSTs`
+      );
+
+      // Test 17: Shared MediaThumbnail descriptor (JPG, GIF, MP4, MOV, OGG exclusion, muted previews, single playbackRate, newly uploaded media)
+      console.log('\nTest 17: Shared MediaThumbnail (JPG, GIF, MP4, MOV, muted previews, single playbackRate, newly uploaded media)');
+      const {
+        getMediaThumbnailProps,
+        applyThumbnailPlaybackRate,
+        THUMBNAIL_VIDEO_PLAYBACK_RATE,
+      } = await import('../app/customize/media-thumbnail');
+
+      // 1. JPG and GIF are classified as photos via isVideo
+      const jpgThumb = getMediaThumbnailProps({ filename: 'anniversary.jpg' });
+      const gifThumb = getMediaThumbnailProps({
+        filename: 'celebration.GIF',
+        mediaPositionX: 30,
+        mediaPositionY: 70,
+        mediaScale: 1.4,
+      });
+      harness.assert(
+        jpgThumb.kind === 'photo' &&
+          jpgThumb.badgeText === null &&
+          jpgThumb.url === '/api/media/anniversary.jpg',
+        'JPG file resolves to photo thumbnail without video badge'
+      );
+      harness.assert(
+        gifThumb.kind === 'photo' &&
+          gifThumb.badgeText === null &&
+          gifThumb.url === '/api/media/celebration.GIF' &&
+          gifThumb.imageStyle?.objectPosition === '30% 70%' &&
+          gifThumb.imageStyle?.transform === 'scale(1.4)',
+        'GIF file resolves to photo thumbnail with custom framing style'
+      );
+
+      // 2. MP4 and MOV are classified as videos via isVideo; OGG is not treated as video
+      const mp4Thumb = getMediaThumbnailProps({ filename: 'dance.mp4', size: 'fill' });
+      const movThumb = getMediaThumbnailProps({ filename: 'toast.MOV', size: 'sm' });
+      const oggThumb = getMediaThumbnailProps({ filename: 'clip.ogg' });
+      harness.assert(
+        mp4Thumb.kind === 'video' &&
+          mp4Thumb.badgeText === 'Video' &&
+          mp4Thumb.sizeClass === 'w-full h-full' &&
+          mp4Thumb.url === '/api/media/dance.mp4',
+        'MP4 file resolves to full video thumbnail with "Video" badge'
+      );
+      harness.assert(
+        movThumb.kind === 'video' &&
+          movThumb.badgeText === 'Vid' &&
+          movThumb.sizeClass === 'w-16 h-16' &&
+          movThumb.url === '/api/media/toast.MOV',
+        'MOV file in compact sm size resolves to video thumbnail with "Vid" badge and w-16 h-16 size'
+      );
+      harness.assert(
+        oggThumb.kind === 'photo' && !isVideo('clip.ogg'),
+        'Unsupported OGG extension is not misclassified as video'
+      );
+
+      // 3. Muted previews and single 1.5x playback speed assignment
+      harness.assert(
+        mp4Thumb.muted === true &&
+          mp4Thumb.autoPlay === true &&
+          mp4Thumb.loop === true &&
+          mp4Thumb.playsInline === true &&
+          mp4Thumb.playbackRate === THUMBNAIL_VIDEO_PLAYBACK_RATE &&
+          THUMBNAIL_VIDEO_PLAYBACK_RATE === 1.5,
+        'Video thumbnails are muted, looping, inline, and configured for 1.5x playback speed'
+      );
+      let playbackRateWrites = 0;
+      let currentPlaybackRate = 1.0;
+      const mockVideoEl = {
+        get playbackRate() {
+          return currentPlaybackRate;
+        },
+        set playbackRate(val: number) {
+          playbackRateWrites += 1;
+          currentPlaybackRate = val;
+        },
+      };
+      applyThumbnailPlaybackRate(mockVideoEl);
+      harness.assert(
+        playbackRateWrites === 1 && currentPlaybackRate === 1.5,
+        'applyThumbnailPlaybackRate sets playbackRate to 1.5 exactly once per event'
+      );
+
+      // 4. Newly uploaded media (with version cache-buster in MediaManager and direct filename in MediaPicker / MemoriesManager)
+      await updateDb((current) => ({ ...current, media: [] }));
+      const newUploadMedia = await inlineUploader.uploadFile(
+        new File([fakeVideoBuffer], 'newly-uploaded.mov', { type: 'video/quicktime' }),
+        0
+      );
+      harness.assert(
+        newUploadMedia !== null && newUploadMedia.filename === 'newly-uploaded.mov',
+        'Newly uploaded MOV file succeeded'
+      );
+      const uploadVersion = 1760000000000;
+      const libraryNewThumb = getMediaThumbnailProps({
+        filename: newUploadMedia!.filename,
+        version: uploadVersion,
+      });
+      const pickerNewThumb = getMediaThumbnailProps({
+        filename: newUploadMedia!.filename,
+      });
+      harness.assert(
+        libraryNewThumb.kind === 'video' &&
+          libraryNewThumb.muted === true &&
+          libraryNewThumb.url === `/api/media/newly-uploaded.mov?t=${uploadVersion}`,
+        'Newly uploaded media in library includes cache-busting version query in URL'
+      );
+      harness.assert(
+        pickerNewThumb.kind === 'video' &&
+          pickerNewThumb.muted === true &&
+          pickerNewThumb.url === '/api/media/newly-uploaded.mov',
+        'Newly uploaded media in picker/memories list resolves clean URL and muted video preview'
+      );
+
+      // Test 18: Single-pass partitionMediaLibrary and Set-based collectUsedMediaIds
+      console.log('\nTest 18: Single-pass partitionMediaLibrary and Set-based collectUsedMediaIds');
+      const { partitionMediaLibrary, collectUsedMediaIds } = await import(
+        '../app/customize/media-manager'
+      );
+
+      let filenameReads = 0;
+      const sampleMedia = [
+        { id: 'm1', filename: 'one.jpg' },
+        { id: 'm2', filename: 'two.mp4' },
+        { id: 'm3', filename: 'three.gif' },
+        { id: 'm4', filename: 'four.mov' },
+      ].map((record) => ({
+        id: record.id,
+        get filename() {
+          filenameReads += 1;
+          return record.filename;
+        },
+      }));
+
+      const partitioned = partitionMediaLibrary(sampleMedia);
+      harness.assert(
+        filenameReads === sampleMedia.length,
+        `partitionMediaLibrary classifies photos and videos in a single pass (${filenameReads} reads for ${sampleMedia.length} items)`
+      );
+      harness.assert(
+        partitioned.photos.map((m) => m.id).join(',') === 'm1,m3' &&
+          partitioned.videos.map((m) => m.id).join(',') === 'm2,m4',
+        'partitionMediaLibrary separates photos (m1,m3) and videos (m2,m4) preserving order'
+      );
+
+      const usedSet = collectUsedMediaIds(
+        [
+          { mediaId: 'm1' },
+          { mediaId: null },
+          { mediaId: 'm2' },
+          { mediaId: 'm1' },
+        ],
+        'm4'
+      );
+      harness.assert(
+        usedSet instanceof Set &&
+          usedSet.size === 3 &&
+          usedSet.has('m1') &&
+          usedSet.has('m2') &&
+          usedSet.has('m4') &&
+          !usedSet.has('m3'),
+        'collectUsedMediaIds returns a Set of unique used media IDs from memories and sealMediaId'
+      );
     }
-
-    harness.finish('Media Constraints & Operations');
-  } finally {
-    await temp.cleanup();
-  }
-}
-
-main().catch((err) => {
-  console.error('Test execution error:', err);
-  process.exit(1);
 });
+

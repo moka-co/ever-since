@@ -1,4 +1,5 @@
 import Module from 'node:module';
+import { spawnSync } from 'node:child_process';
 import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -44,6 +45,7 @@ export interface TempContext {
   dir: string;
   dbPath: string;
   mediaDir: string;
+  bannedIpPath: string;
   cleanup: () => Promise<void>;
 }
 
@@ -51,6 +53,7 @@ export async function useTempDb(initialSecret = '12345678901234567890'): Promise
   const dir = await mkdtemp(join(tmpdir(), 'ever-since-test-'));
   const dbPath = join(dir, 'db.json');
   const mediaDir = join(dir, 'media');
+  const bannedIpPath = join(dir, 'banned_ip.log');
 
   await mkdir(mediaDir, { recursive: true });
 
@@ -60,15 +63,86 @@ export async function useTempDb(initialSecret = '12345678901234567890'): Promise
 
   process.env.DB_PATH = dbPath;
   process.env.MEDIA_DIR = mediaDir;
+  process.env.BANNED_IP_PATH = bannedIpPath;
 
   return {
     dir,
     dbPath,
     mediaDir,
+    bannedIpPath,
     cleanup: async () => {
       delete process.env.DB_PATH;
       delete process.env.MEDIA_DIR;
+      delete process.env.BANNED_IP_PATH;
       await rm(dir, { recursive: true, force: true }).catch(() => {});
     },
   };
 }
+
+export interface SuiteContext {
+  harness: TestHarness;
+  temp: TempContext;
+}
+
+export interface SuiteOptions {
+  initialSecret?: string;
+}
+
+export async function runTestSuite(
+  suiteName: string,
+  fn: (context: SuiteContext) => Promise<void> | void,
+  options: SuiteOptions = {}
+): Promise<void> {
+  const harness = new TestHarness();
+  const temp = await useTempDb(options.initialSecret);
+
+  try {
+    try {
+      await fn({ harness, temp });
+    } finally {
+      await temp.cleanup();
+    }
+    harness.finish(suiteName);
+  } catch (err) {
+    console.error('Test execution error:', err);
+    process.exit(1);
+  }
+}
+
+export const TEST_SUITES = [
+  'tests/proxy.test.ts',
+  'tests/db.test.ts',
+  'tests/media.test.ts',
+  'tests/memories_and_config.test.ts',
+  'tests/logger.test.ts',
+  'tests/lockout.test.ts',
+  'tests/date_verification.test.ts',
+  'tests/swipe_hint.test.ts',
+  'tests/timeline_ui.test.ts',
+  'tests/valentine_memory.test.ts',
+] as const;
+
+export function runSuiteProcess(suitePath: string): number {
+  const result = spawnSync(process.execPath, ['--import', 'tsx', suitePath], {
+    stdio: 'inherit',
+  });
+  if (result.error) {
+    console.error(`Failed to launch test suite ${suitePath}:`, result.error);
+    return 1;
+  }
+  return result.status ?? 1;
+}
+
+export function runSuiteFiles(
+  suites: readonly string[] = TEST_SUITES,
+  runner: (suitePath: string) => number = runSuiteProcess
+): number {
+  for (const suite of suites) {
+    const exitCode = runner(suite);
+    if (exitCode !== 0) {
+      return exitCode;
+    }
+  }
+  return 0;
+}
+

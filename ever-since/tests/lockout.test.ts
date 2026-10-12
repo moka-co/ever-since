@@ -1,17 +1,9 @@
-import { useTempDb, TestHarness } from './helpers';
+import { runTestSuite } from './helpers';
 import { NextRequest } from 'next/server';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 
-async function main() {
-  const harness = new TestHarness();
-  const temp = await useTempDb('12345678901234567890');
-
-  const testBannedIpPath = join(temp.dir, 'banned_ip.log');
-  process.env.BANNED_IP_PATH = testBannedIpPath;
-
-  try {
+runTestSuite('Lockout Verification', async ({ harness, temp }) => {
     console.log('--- Starting Lockout Verification Tests ---');
 
     const {
@@ -25,7 +17,7 @@ async function main() {
       console.log('\nTest 1: Initial state - IP is not banned');
       const banned = await isIpBanned('192.168.1.100');
       harness.assert(!banned, 'IP is initially not banned');
-      harness.assert(!existsSync(testBannedIpPath), 'banned_ip.log does not exist initially');
+      harness.assert(!existsSync(temp.bannedIpPath), 'banned_ip.log does not exist initially');
     }
 
     // Test 2: Failed attempts 1 through 4 do not ban
@@ -36,7 +28,7 @@ async function main() {
         harness.assert(!result.banned, `Attempt ${i} does not ban`);
         harness.assert(result.attempts === i, `Attempt count is ${i}`);
       }
-      harness.assert(!existsSync(testBannedIpPath), 'banned_ip.log not created before 5 attempts');
+      harness.assert(!existsSync(temp.bannedIpPath), 'banned_ip.log not created before 5 attempts');
     }
 
     // Test 3: 5th failed attempt triggers ban and persists to banned_ip.log
@@ -45,9 +37,9 @@ async function main() {
       const result = await recordFailedAttempt('192.168.1.100');
       harness.assert(result.banned, '5th attempt triggers ban');
       harness.assert(result.attempts === 5, 'Attempt count is 5');
-      harness.assert(existsSync(testBannedIpPath), 'banned_ip.log exists after 5th attempt');
+      harness.assert(existsSync(temp.bannedIpPath), 'banned_ip.log exists after 5th attempt');
 
-      const content = await readFile(testBannedIpPath, 'utf8');
+      const content = await readFile(temp.bannedIpPath, 'utf8');
       harness.assert(content.includes('192.168.1.100'), 'banned_ip.log contains banned IP');
 
       const isBannedNow = await isIpBanned('192.168.1.100');
@@ -134,15 +126,5 @@ async function main() {
       const afterSuccessRes = await callLogin('wrong-pass', resetTestIp);
       harness.assert(afterSuccessRes.status === 401, 'Attempt after reset returns 401, not locked out');
     }
-
-    harness.finish('Lockout Verification');
-  } finally {
-    delete process.env.BANNED_IP_PATH;
-    await temp.cleanup();
-  }
-}
-
-main().catch((err) => {
-  console.error('Test execution error:', err);
-  process.exit(1);
 });
+

@@ -62,11 +62,3 @@ export function validateMediaConstraints(
 
   return null;
 }
-
-export function getNextMediaId(existingMedia: { id: string }[]): string {
-  const maxId = existingMedia.reduce((max, item) => {
-    const num = parseInt(item.id, 10);
-    return !isNaN(num) && num > max ? num : max;
-  }, 0);
-  return String(maxId + 1);
-}

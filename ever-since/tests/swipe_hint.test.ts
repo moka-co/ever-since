@@ -1,8 +1,6 @@
-import { TestHarness } from './helpers';
+import { runTestSuite } from './helpers';
 
-async function main() {
-  const harness = new TestHarness();
-
+runTestSuite('Swipe Hint Verification', async ({ harness }) => {
   console.log('--- Starting Swipe Hint Unit Tests ---');
 
   // Step 1: RED test - import swipe hint module
@@ -305,11 +303,5 @@ async function main() {
       'Card peek is disabled when hint is inactive'
     );
   }
-
-  harness.finish('Swipe Hint Verification');
-}
-
-main().catch((err) => {
-  console.error('Unhandled error in test:', err);
-  process.exit(1);
 });
+

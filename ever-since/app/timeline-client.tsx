@@ -1,7 +1,11 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { motion, PanInfo, AnimatePresence, MotionConfig, useReducedMotion } from "framer-motion";
-import type { MemoryRecord, MediaRecord } from "@/lib/storage/schema";
+import {
+  getPhotoFramingStyle,
+  type MemoryRecord,
+  type MediaRecord,
+} from "@/lib/storage/schema";
 import { isVideo } from "@/lib/media/validation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSwipeHint, shouldPlayCardPeek } from "@/lib/hooks/use-swipe-hint";
@@ -419,10 +423,7 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
                             markLoaded(currentIndex);
                           }
                         }}
-                        style={{
-                          objectPosition: `${activeMemory?.mediaPositionX ?? 50}% ${activeMemory?.mediaPositionY ?? 50}%`,
-                          transform: `scale(${activeMemory?.mediaScale ?? 1})`,
-                        }}
+                        style={getPhotoFramingStyle(activeMemory)}
                         className={`w-full h-full object-cover transition-opacity duration-300 pointer-events-none ${
                           isCurrentMediaLoaded ? 'opacity-100' : 'opacity-0'
                         }`}

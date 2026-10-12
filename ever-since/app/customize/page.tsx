@@ -3,7 +3,7 @@ import { readDb } from '@/lib/storage/db';
 import { reconcileMediaLibrary } from '@/lib/media/sync';
 import ConfigForm from './config-form';
 import SealPhotoManager from './seal-photo-manager';
-import MediaManager from './media-manager';
+import MediaManager, { collectUsedMediaIds } from './media-manager';
 import MemoriesManager from './memories-manager';
 import CustomizeTabs from './customize-tabs';
 
@@ -51,11 +51,9 @@ export default async function CustomizePage() {
         </header>
 
         {(() => {
-          const usedMediaIds = Array.from(
-            new Set([
-              ...db.memories.map((m) => m.mediaId).filter((id): id is string => Boolean(id)),
-              ...(db.config.sealMediaId ? [db.config.sealMediaId] : []),
-            ])
+          const usedMediaIds = collectUsedMediaIds(
+            db.memories,
+            db.config.sealMediaId
           );
           return (
             <CustomizeTabs

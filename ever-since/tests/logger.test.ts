@@ -1,14 +1,10 @@
-import { useTempDb, TestHarness } from './helpers';
+import { runTestSuite } from './helpers';
 import { readFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { createLogger, getClientIp } from '../lib/logger';
 
-async function main() {
-  const harness = new TestHarness();
-  const temp = await useTempDb('12345678901234567890');
-
-  try {
+runTestSuite('Logger Verification', async ({ harness, temp }) => {
     console.log('--- Starting Logger Verification Tests ---');
 
     // Test 1: In test mode, logger is silent and does NOT log to eversince.logs file
@@ -153,14 +149,5 @@ async function main() {
 
       await rm(testLogPath, { force: true }).catch(() => {});
     }
-
-    harness.finish('Logger Verification');
-  } finally {
-    await temp.cleanup();
-  }
-}
-
-main().catch((err) => {
-  console.error('Test execution error:', err);
-  process.exit(1);
 });
+

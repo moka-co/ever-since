@@ -1,16 +1,8 @@
-import { useTempDb, TestHarness } from './helpers';
+import { runTestSuite } from './helpers';
 import { NextRequest } from 'next/server';
-import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 
-async function main() {
-  const harness = new TestHarness();
-  const temp = await useTempDb('12345678901234567890');
-  const testBannedIpPath = join(temp.dir, 'banned_ip.log');
-  process.env.BANNED_IP_PATH = testBannedIpPath;
-
-  try {
+runTestSuite('Date Verification & Escalating Feedback', async ({ harness, temp }) => {
     console.log('--- Starting Date Verification & Escalating Feedback Tests ---');
 
     const {
@@ -285,7 +277,7 @@ async function main() {
       harness.assert(lockGetData.isLockedOut === true, 'GET confirms active lockout');
 
       // Date failure should NOT write to password banned_ip.log
-      harness.assert(!existsSync(testBannedIpPath), 'Date failure does not ban IP for password auth');
+      harness.assert(!existsSync(temp.bannedIpPath), 'Date failure does not ban IP for password auth');
     }
 
     // Test 5: Successful date verification resets counter and returns 200
@@ -322,15 +314,5 @@ async function main() {
       harness.assert(successData.valid === true, 'valid is true');
       harness.assert(getDateLockoutStatus(freshIp).attempts === 0, 'Counter reset to 0 after success');
     }
-
-    harness.finish('Date Verification & Escalating Feedback');
-  } finally {
-    delete process.env.BANNED_IP_PATH;
-    await temp.cleanup();
-  }
-}
-
-main().catch((err) => {
-  console.error('Test execution error:', err);
-  process.exit(1);
 });
+

@@ -18,7 +18,12 @@ export function updateDb(
   updater: (db: DatabaseSchema) => DatabaseSchema | Promise<DatabaseSchema>
 ): Promise<DatabaseSchema> {
   const run = queue.then(async () => {
-    const next = dbSchema.parse(await updater(await readDb()));
+    const current = await readDb();
+    const updated = await updater(current);
+    if (updated === current) {
+      return current;
+    }
+    const next = dbSchema.parse(updated);
     await writeFile(DB_PATH, JSON.stringify(next, null, 2), 'utf8');
     logger.info(
       {

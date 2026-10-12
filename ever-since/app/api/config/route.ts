@@ -32,35 +32,45 @@ export async function PUT(request: Request) {
     const body = await request.json().catch(() => ({}));
     const { anniversaryDate, sealMediaId } = body;
 
-    const db = await readDb();
-    const newConfig = { ...db.config };
-
-    if (anniversaryDate !== undefined) {
-      if (typeof anniversaryDate !== 'string') {
-        return NextResponse.json({ error: 'anniversaryDate must be a string' }, { status: 400 });
-      }
-      newConfig.anniversaryDate = anniversaryDate;
+    if (anniversaryDate !== undefined && typeof anniversaryDate !== 'string') {
+      return NextResponse.json({ error: 'anniversaryDate must be a string' }, { status: 400 });
     }
 
-    if (sealMediaId !== undefined) {
-      if (sealMediaId !== null && typeof sealMediaId !== 'string') {
-        return NextResponse.json({ error: 'sealMediaId must be a string or null' }, { status: 400 });
+    if (sealMediaId !== undefined && sealMediaId !== null && typeof sealMediaId !== 'string') {
+      return NextResponse.json({ error: 'sealMediaId must be a string or null' }, { status: 400 });
+    }
+
+    let missingMediaError: string | null = null;
+
+    const updated = await updateDb((currentDb) => {
+      const newConfig = { ...currentDb.config };
+
+      if (anniversaryDate !== undefined) {
+        newConfig.anniversaryDate = anniversaryDate;
       }
-      if (typeof sealMediaId === 'string' && sealMediaId !== '') {
-        const mediaExists = db.media.some((m) => m.id === sealMediaId);
-        if (!mediaExists) {
-          return NextResponse.json({ error: `Media with ID '${sealMediaId}' not found` }, { status: 400 });
+
+      if (sealMediaId !== undefined) {
+        if (typeof sealMediaId === 'string' && sealMediaId !== '') {
+          const mediaExists = currentDb.media.some((m) => m.id === sealMediaId);
+          if (!mediaExists) {
+            missingMediaError = `Media with ID '${sealMediaId}' not found`;
+            return currentDb;
+          }
+          newConfig.sealMediaId = sealMediaId;
+        } else {
+          newConfig.sealMediaId = null;
         }
-        newConfig.sealMediaId = sealMediaId;
-      } else {
-        newConfig.sealMediaId = null;
       }
-    }
 
-    const updated = await updateDb((currentDb) => ({
-      ...currentDb,
-      config: newConfig,
-    }));
+      return {
+        ...currentDb,
+        config: newConfig,
+      };
+    });
+
+    if (missingMediaError) {
+      return NextResponse.json({ error: missingMediaError }, { status: 400 });
+    }
 
     return NextResponse.json(
       {

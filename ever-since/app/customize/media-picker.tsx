@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { MediaRecord } from '@/lib/storage/schema';
-
-const VIDEO_EXT = /\.(mp4|webm|ogg|mov)$/i;
+import MediaThumbnail from './media-thumbnail';
 
 interface MediaPickerProps {
   mediaList: MediaRecord[];
@@ -13,38 +12,6 @@ interface MediaPickerProps {
   isUploading: boolean;
   canUpload: boolean;
   disabled?: boolean;
-}
-
-function Thumb({ media }: { media: MediaRecord }) {
-  if (VIDEO_EXT.test(media.filename)) {
-    return (
-      <div className="relative w-full h-full">
-        <video
-          src={`/api/media/${media.filename}`}
-          autoPlay
-          loop
-          muted
-          playsInline
-          onLoadedMetadata={(e) => {
-            e.currentTarget.playbackRate = 1.5;
-          }}
-          className="w-full h-full object-cover pointer-events-none"
-        />
-        <span className="absolute bottom-1 right-1 bg-black/70 text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase pointer-events-none tracking-wider">
-          Video
-        </span>
-      </div>
-    );
-  }
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/api/media/${media.filename}`}
-      alt=""
-      loading="lazy"
-      className="w-full h-full object-cover"
-    />
-  );
 }
 
 export default function MediaPicker({
@@ -90,7 +57,7 @@ export default function MediaPicker({
         >
           {selected ? (
             <>
-              <Thumb media={selected} />
+              <MediaThumbnail filename={selected.filename} lazy />
               <span className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[11px] font-semibold text-white">
                 Change
               </span>
@@ -213,7 +180,7 @@ export default function MediaPicker({
                             : 'border-transparent hover:border-[#ECDCE3]'
                         }`}
                       >
-                        <Thumb media={m} />
+                        <MediaThumbnail filename={m.filename} lazy />
                         {isSelected && (
                           <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] text-white text-[11px] font-bold flex items-center justify-center shadow">
                             ✓
