@@ -35,13 +35,6 @@ export default function LogoutPage() {
   return (
     <main className="min-h-dvh relative flex flex-col items-center justify-center px-4 py-6 sm:p-6 md:p-12 select-none overflow-x-hidden">
       <article className="w-80 sm:w-96 md:w-[420px] max-w-full rounded-[36px] md:rounded-[40px] bg-white border border-[#F1E8EC] shadow-[0_12px_40px_rgba(255,150,170,0.22)] p-8 sm:p-10 flex flex-col items-center justify-center text-center">
-        {/* Soft progress indicator matching main flow */}
-        <div className="flex items-center justify-center gap-1.5 mb-5">
-          <span className="w-2 h-2 rounded-full bg-[#F1D6DE]" />
-          <span className="w-6 h-2 rounded-full bg-[#D4537E] animate-pulse" />
-          <span className="w-2 h-2 rounded-full bg-[#F1D6DE]" />
-        </div>
-
         <h1 className="text-2xl font-bold text-foreground mb-2">Ever Since...</h1>
 
         {status === 'logging-out' && (
