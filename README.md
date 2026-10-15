@@ -1,10 +1,7 @@
 # ever-since
 > Ever since we met... A romantic web experience for couples' recurrences, like anniversaries. Customize the experience, upload your photos and videos, and maybe you'll impress them :)
 
-You can see a demo of the user experience from mobile there: [demo](docs/assets/eversince_demo.mp4)
-
-https://github.com/user-attachments/assets/2d5beaef-9a0f-4ae8-bd67-a57aa10e5f66
-
+You can see a demo of the user experience from mobile there [demo](#Demo)
 
 ## Getting Started
 Requirements: Node.js 22 and npm.
@@ -86,4 +83,8 @@ To add photos, videos and memories go to `/customize` and you'll find the custom
 ## Privacy and security consideration
  
 Ever-Since handles personal data, so it is designed to be **temporary**. I personally run it for a few days around the anniversary and then shut it down. The app was developed with web app security in mind but it is not perfect. A basic login rate limited with IP ban for failed attempts is implemented but it may be not enough so be careful.
+
+
+## Demo
+https://github.com/user-attachments/assets/2d5beaef-9a0f-4ae8-bd67-a57aa10e5f66
 
