@@ -434,6 +434,30 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
                 ) : (
                   <div className="text-muted text-sm px-4 text-center">No media available</div>
                 )}
+
+                {/* Rewind Darkening Mask & Luminosity Reduction */}
+                <AnimatePresence>
+                  {isRewinding && (
+                    <motion.div
+                      key="rewind-mask"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute inset-0 bg-black/45 backdrop-blur-[1px] flex flex-col items-center justify-center pointer-events-none z-20"
+                    >
+                      <motion.span
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 4 }}
+                        transition={{ duration: 0.2, delay: 0.1 }}
+                        className="text-white/90 text-xs font-semibold px-3.5 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/15 tracking-wide shadow-sm"
+                      >
+                        Rewinding to beginning...
+                      </motion.span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </figure>
 
               {/* Integrated caption inside the card */}
@@ -536,30 +560,100 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
             )}
           </button>
         ) : (
-          <div className="relative w-12 h-12 rounded-full bg-white border border-[#F1E8EC] shadow-sm flex items-center justify-center overflow-hidden group">
+          <div className="relative w-12 h-12 flex items-center justify-center">
+            {/* Slot placeholder so toolbar buttons do not shift when rewind lifts */}
+            <div className="w-12 h-12 rounded-full border border-dashed border-[#F1E8EC] opacity-40 pointer-events-none" />
+
+            {/* Lifting & Enlarging Rewind Button */}
             <motion.div
-              className="absolute inset-0 bg-[#D4537E] rounded-full origin-center"
-              initial={{ scale: 0 }}
-              animate={{ scale: isRewinding ? 1 : 0 }}
-              transition={{ duration: isRewinding ? 1.5 : 0.2, ease: "linear" }}
-            />
-            <button
-              type="button"
-              aria-label="Rewind to beginning"
-              disabled={isUnresolvedValentine}
-              onPointerDown={isUnresolvedValentine ? undefined : handlePointerDown}
-              onPointerUp={isUnresolvedValentine ? undefined : handlePointerUp}
-              onPointerCancel={isUnresolvedValentine ? undefined : handlePointerUp}
-              onPointerLeave={isUnresolvedValentine ? undefined : handlePointerUp}
-              onContextMenu={(e) => e.preventDefault()}
-              style={{ touchAction: 'none' }}
-              className={`relative z-10 w-full h-full flex items-center justify-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta rounded-full select-none ${
-                isRewinding ? 'text-white' : 'text-[#6B7280] hover:text-foreground'
-              }`}
+              layout
+              animate={{
+                y: isRewinding ? -120 : 0,
+                scale: isRewinding ? 1.4 : 1,
+                boxShadow: isRewinding
+                  ? '0 20px 35px -5px rgba(212, 83, 126, 0.4), 0 0 0 4px rgba(255, 255, 255, 0.85)'
+                  : '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+              }}
+              transition={{
+                type: 'spring',
+                stiffness: 400,
+                damping: 25,
+                mass: 0.8,
+              }}
+              className="absolute w-12 h-12 rounded-full bg-white border border-[#F1E8EC] flex items-center justify-center z-30 select-none cursor-pointer"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
-              <span className="sr-only">Rewind</span>
-            </button>
+              {/* Outer circular progress ring indicator */}
+              <svg
+                className="absolute -inset-1.5 w-[60px] h-[60px] -rotate-90 pointer-events-none"
+                viewBox="0 0 60 60"
+              >
+                <circle
+                  cx="30"
+                  cy="30"
+                  r="26"
+                  fill="none"
+                  stroke={isRewinding ? 'rgba(255, 255, 255, 0.3)' : 'transparent'}
+                  strokeWidth="3.5"
+                />
+                <motion.circle
+                  cx="30"
+                  cy="30"
+                  r="26"
+                  fill="none"
+                  stroke="#D4537E"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  strokeDasharray={163.36}
+                  initial={{ strokeDashoffset: 163.36 }}
+                  animate={{ strokeDashoffset: isRewinding ? 0 : 163.36 }}
+                  transition={{
+                    duration: isRewinding ? 1.5 : 0.2,
+                    ease: 'linear',
+                  }}
+                />
+              </svg>
+
+              {/* Internal subtle radial fill */}
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-tr from-[#D4537E] to-[#FB7185] rounded-full origin-center"
+                initial={{ scale: 0 }}
+                animate={{ scale: isRewinding ? 1 : 0 }}
+                transition={{ duration: isRewinding ? 1.5 : 0.2, ease: "linear" }}
+              />
+
+              <button
+                type="button"
+                aria-label="Rewind to beginning"
+                disabled={isUnresolvedValentine}
+                onPointerDown={isUnresolvedValentine ? undefined : handlePointerDown}
+                onPointerUp={isUnresolvedValentine ? undefined : handlePointerUp}
+                onPointerCancel={isUnresolvedValentine ? undefined : handlePointerUp}
+                onPointerLeave={isUnresolvedValentine ? undefined : handlePointerUp}
+                onContextMenu={(e) => e.preventDefault()}
+                style={{ touchAction: 'none' }}
+                className={`relative z-10 w-full h-full flex items-center justify-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta rounded-full select-none ${
+                  isRewinding ? 'text-white' : 'text-[#6B7280] hover:text-foreground'
+                }`}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                  className={isRewinding ? 'animate-spin-slow' : ''}
+                >
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                <span className="sr-only">Rewind</span>
+              </button>
+            </motion.div>
           </div>
         )}
 

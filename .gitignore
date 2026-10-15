@@ -6,3 +6,5 @@ docs/superpowers
 docs/deployment-steps.md
 *.tar.gz
 docs/review/*
+media-temp
+db-temp.json

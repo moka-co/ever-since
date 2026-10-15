@@ -104,7 +104,7 @@
 - **Navigation Controls & Toolbar**:
   - Compact toolbar centered directly below the card uniting `< Prev`, `↺ Rewind`, and `Next >`:
     - **Previous (`<`)**: Secondary circular button in milk-white with delicate border and subtle shadow.
-    - **Rewind (`↺`)**: Centered 1.5-second press-and-hold button with circular radial fill animation in berry rose.
+    - **Rewind (`↺`)**: Centered 1.5-second press-and-hold button. When pressed/held, the photo immediately dims with a darkened contrast mask (`bg-black/45`) with reduced luminosity, and the button smoothly lifts upward onto the photo card and enlarges (`scale: 1.4`), featuring an outer circular progress ring and gentle icon rotation so the finger never blocks the interaction feedback. If released early, it returns back down into the toolbar and drops the mask.
     - **Next (`>`)**: Primary action button styled with an eye-catching peach-pink gradient (`from-[#F472B6] to-[#FB7185]`), white chevron, and glowing rose shadow to establish clear narrative hierarchy.
   - Mobile swipe gestures on the card remain supported for natural one-handed browsing.
 - **Mobile Swipe Hint & Card Peek Discovery**:

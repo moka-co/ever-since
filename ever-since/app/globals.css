@@ -80,12 +80,23 @@ body::before {
   40%, 80% { transform: translateX(6px); }
 }
 
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
 .animate-gentle-shake {
   animation: gentle-shake 0.4s ease-in-out;
 }
 
+.animate-spin-slow {
+  animation: spin-slow 2s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-gentle-shake {
+  .animate-gentle-shake,
+  .animate-spin-slow {
     animation: none;
   }
 }
+

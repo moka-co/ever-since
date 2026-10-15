@@ -53,7 +53,7 @@ export default function MediaPicker({
           onClick={() => setIsOpen(true)}
           disabled={disabled}
           aria-label={selected ? 'Change selected media' : 'Choose media'}
-          className="group relative w-20 h-20 shrink-0 rounded-2xl overflow-hidden border-2 border-dashed border-[#ECDCE3] bg-[#FAF7F8] hover:border-[#F472B6] transition-colors disabled:opacity-50 flex items-center justify-center"
+          className="group relative w-20 h-20 shrink-0 rounded-2xl overflow-hidden border-2 border-dashed border-[#ECDCE3] bg-[#FAF7F8] hover:border-[#F472B6] transition-colors disabled:opacity-50 flex items-center justify-center cursor-pointer"
         >
           {selected ? (
             <>
@@ -67,39 +67,16 @@ export default function MediaPicker({
           )}
         </button>
 
-        <div className="flex flex-col gap-1.5 min-w-0">
+        {selected && (
           <button
             type="button"
-            onClick={() => setIsOpen(true)}
+            onClick={() => onChange('')}
             disabled={disabled}
-            className="text-left text-sm font-semibold text-foreground hover:text-[#EC4899] transition-colors disabled:opacity-50"
+            className="text-xs font-semibold text-rose-500 hover:text-rose-700 underline-offset-2 hover:underline disabled:opacity-50"
           >
-            {selected ? 'Change media' : 'Choose a photo or video'}
+            Remove
           </button>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onUploadClick}
-              disabled={disabled || isUploading || !canUpload}
-              className="text-xs font-semibold text-muted hover:text-foreground underline-offset-2 hover:underline disabled:opacity-50 disabled:no-underline"
-            >
-              {isUploading ? 'Uploading...' : 'Upload new'}
-            </button>
-            {selected && (
-              <>
-                <span className="text-muted text-xs">·</span>
-                <button
-                  type="button"
-                  onClick={() => onChange('')}
-                  disabled={disabled}
-                  className="text-xs font-semibold text-rose-500 hover:text-rose-700 underline-offset-2 hover:underline disabled:opacity-50"
-                >
-                  Remove
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Modal grid */}
