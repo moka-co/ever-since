@@ -1,6 +1,8 @@
 # ever-since
 > Ever since we met... A romantic web experience for couples' recurrences, like anniversaries. Customize the experience, upload your photos and videos, and maybe you'll impress them :)
 
+**Ever Since** is a full-stack web application built with React, Tailwind CSS and Next.JS, See ([details](#tech-stack)).
+
 You can see a demo of the user experience from mobile there [demo](#Demo)
 
 ## Getting Started
@@ -57,6 +59,7 @@ To add photos, videos and memories go to `/customize` and you'll find the custom
 | Language | TypeScript (strict), run with `tsx` for scripts |
 | Styling and motion | Tailwind CSS, Framer Motion  |
 | Data storage | flat JSON database (`db.json`) with Zod validation, media on the local filesystem |
+| Backend | Rest APIs in Next.js |
 | Image processing | Sharp (resize to 2048px max, EXIF stripping) |
 | Auth and security | App-generated 20-character secret, encrypted cookie sessions with `iron-session`, constant-time comparison, persistent IP ban list |
 | Logging | `pino` (structured JSON logs, backend only) |
