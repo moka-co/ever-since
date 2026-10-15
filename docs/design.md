@@ -273,6 +273,11 @@
   - Admins can toggle between **Standard** and **Special: Valentine** when adding or editing any memory.
   - Editable Valentine fields: Question/Heading, Yes Button Label, No Button Label, and Mobile "No" Tap Microcopy (one per line, with a "Reset defaults" action).
   - Includes an **Interactive Valentine Preview** inside the form where clicking `No` live-tests the 5-tap growth and microcopy sequence.
+- **Button Click Visual Feedback (Subtle Contour Changes)**:
+  - Both "Yes" and "No" buttons provide tactile visual feedback on click/press via a subtle change in their contour:
+    - **"Yes" Button**: Outlined with `border-transparent ring-2 ring-transparent ring-offset-2 ring-offset-transparent` at rest. Upon clicking or active press, transitions to an inner delicate translucent border (`border-white/50`) and a subtle rose outer contour ring (`ring-2 ring-[#FB7185]/70 ring-offset-2 ring-offset-white`).
+    - **"No" Button**: Outlined with `border-[#F1E8EC] ring-2 ring-transparent ring-offset-1 ring-offset-transparent` at rest. Upon clicking or active press, shifts its border to a gentle rose tint (`border-[#F472B6]/70`) and highlights its contour with a soft blush ring (`ring-2 ring-[#F1D6DE] ring-offset-1 ring-offset-white`).
+    - Feedback persists for `300ms` on quick tap/click with smooth CSS `transition-all duration-200`, providing responsive visual confirmation without intrusive scale or jarring movement. Also mirrored in the `/customize` interactive Valentine preview.
 - **Modified & Created Files**:
   - `ever-since/lib/storage/schema.ts` (`memoryTypeSchema`, `valentineConfigSchema`, `memorySchema`)
   - `ever-since/app/api/memories/route.ts` & `ever-since/app/api/memories/[id]/route.ts`

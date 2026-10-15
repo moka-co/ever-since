@@ -17,6 +17,7 @@ import {
   isPointerWithinProximity,
   rectsOverlap,
   computeSafeDodgePosition,
+  getValentineButtonContourClasses,
   type BoxRect,
 } from '../components/valentine-memory';
 
@@ -455,5 +456,46 @@ runTestSuite('Valentine Special Memory', async ({ harness }) => {
       const std0 = getTimelineControlState(0, 3, false);
       harness.assert(std0.centerControl === 'like', 'Standard memory at index 0 renders like control');
     }
+
+    // Test 7: Visual contour feedback on Valentine Yes and No buttons
+    {
+      console.log('\nTest 7: Visual contour feedback on Valentine Yes and No buttons');
+
+      const yesDefault = getValentineButtonContourClasses('yes', false);
+      const yesClicked = getValentineButtonContourClasses('yes', true);
+      const noDefault = getValentineButtonContourClasses('no', false);
+      const noClicked = getValentineButtonContourClasses('no', true);
+
+      // Verify Yes button contour classes
+      harness.assert(
+        yesDefault.includes('border-transparent') &&
+          yesDefault.includes('ring-transparent') &&
+          yesDefault.includes('active:ring-[#FB7185]/60'),
+        'Yes button includes default transparent contour and active ring styling'
+      );
+      harness.assert(
+        yesClicked.includes('border-white/50') &&
+          yesClicked.includes('ring-2') &&
+          yesClicked.includes('ring-[#FB7185]/70') &&
+          yesClicked.includes('ring-offset-2'),
+        'Yes button clicked state highlights contour with subtle rose ring and inner border'
+      );
+
+      // Verify No button contour classes
+      harness.assert(
+        noDefault.includes('border-[#F1E8EC]') &&
+          noDefault.includes('ring-transparent') &&
+          noDefault.includes('active:border-[#F472B6]/60'),
+        'No button includes default delicate border and active rose contour styling'
+      );
+      harness.assert(
+        noClicked.includes('border-[#F472B6]/70') &&
+          noClicked.includes('ring-2') &&
+          noClicked.includes('ring-[#F1D6DE]') &&
+          noClicked.includes('ring-offset-1'),
+        'No button clicked state highlights contour with rose border and delicate blush ring'
+      );
+    }
 });
+
 

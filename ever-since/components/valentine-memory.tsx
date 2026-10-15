@@ -21,6 +21,20 @@ export interface BoxRect {
   height: number;
 }
 
+export function getValentineButtonContourClasses(
+  type: 'yes' | 'no',
+  isClicked: boolean
+): string {
+  if (type === 'yes') {
+    return isClicked
+      ? 'border-white/50 ring-2 ring-[#FB7185]/70 ring-offset-2 ring-offset-white'
+      : 'border-transparent ring-2 ring-transparent ring-offset-2 ring-offset-transparent active:border-white/40 active:ring-2 active:ring-[#FB7185]/60 active:ring-offset-2 active:ring-offset-white';
+  }
+  return isClicked
+    ? 'border-[#F472B6]/70 ring-2 ring-[#F1D6DE] ring-offset-1 ring-offset-white shadow-md'
+    : 'border-[#F1E8EC] ring-2 ring-transparent ring-offset-1 ring-offset-transparent active:border-[#F472B6]/60 active:ring-2 active:ring-[#F1D6DE] active:ring-offset-1 active:ring-offset-white';
+}
+
 export interface MobileValentineStepState {
   step: number;
   yesScale: number;
@@ -177,11 +191,22 @@ export default function ValentineMemory({
   const [noTapCount, setNoTapCount] = useState(0);
   const [dodgePosition, setDodgePosition] = useState<{ x: number; y: number } | null>(null);
   const [resolvedOnLastCard, setResolvedOnLastCard] = useState(false);
+  const [isYesClicked, setIsYesClicked] = useState(false);
+  const [isNoClicked, setIsNoClicked] = useState(false);
 
   const stageRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const yesBtnRef = useRef<HTMLButtonElement>(null);
   const noBtnRef = useRef<HTMLButtonElement>(null);
+  const yesClickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const noClickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (yesClickTimeoutRef.current) clearTimeout(yesClickTimeoutRef.current);
+      if (noClickTimeoutRef.current) clearTimeout(noClickTimeoutRef.current);
+    };
+  }, []);
 
   // Detect input mode using media queries inside useEffect (hydration-safe)
   useEffect(() => {
@@ -293,6 +318,14 @@ export default function ValentineMemory({
 
   const handleNoClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (resolvedOnLastCard) return;
+
+    // Trigger subtle contour visual feedback
+    setIsNoClicked(true);
+    if (noClickTimeoutRef.current) clearTimeout(noClickTimeoutRef.current);
+    noClickTimeoutRef.current = setTimeout(() => {
+      setIsNoClicked(false);
+    }, 300);
+
     // On desktop with pointer click (not keyboard), dodge away if somehow clicked
     if (inputMode === 'desktop' && !isReducedMotion && e.detail > 0) {
       triggerDodge(e.clientX, e.clientY);
@@ -302,6 +335,13 @@ export default function ValentineMemory({
   };
 
   const handleYesClick = () => {
+    // Trigger subtle contour visual feedback
+    setIsYesClicked(true);
+    if (yesClickTimeoutRef.current) clearTimeout(yesClickTimeoutRef.current);
+    yesClickTimeoutRef.current = setTimeout(() => {
+      setIsYesClicked(false);
+    }, 300);
+
     if (isLastCard) {
       setResolvedOnLastCard(true);
     }
@@ -376,7 +416,10 @@ export default function ValentineMemory({
               ? { duration: 0.15 }
               : { type: 'spring', stiffness: 320, damping: 22 }
           }
-          className="relative z-30 rounded-full px-8 py-3.5 text-base font-bold text-white bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] shadow-[0_6px_24px_rgba(244,114,182,0.45)] hover:shadow-[0_8px_28px_rgba(244,114,182,0.6)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cta cursor-pointer transition-colors"
+          className={`relative z-30 rounded-full px-8 py-3.5 text-base font-bold text-white bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] shadow-[0_6px_24px_rgba(244,114,182,0.45)] hover:shadow-[0_8px_28px_rgba(244,114,182,0.6)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cta cursor-pointer transition-all duration-200 border ${getValentineButtonContourClasses(
+            'yes',
+            isYesClicked
+          )}`}
         >
           {resolvedOnLastCard ? `♥ ${yesLabel}!` : yesLabel}
         </motion.button>
@@ -410,7 +453,10 @@ export default function ValentineMemory({
                     opacity: mobileState.noOpacity,
                   }
             }
-            className={`z-20 rounded-full px-7 py-3 text-sm font-semibold text-[#4B5563] bg-white hover:bg-gray-50 border border-[#F1E8EC] shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta transition-[transform,opacity] duration-[180ms] ease-out motion-reduce:transition-opacity ${
+            className={`z-20 rounded-full px-7 py-3 text-sm font-semibold text-[#4B5563] bg-white hover:bg-gray-50 border shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta transition-all duration-200 ease-out motion-reduce:transition-opacity ${getValentineButtonContourClasses(
+              'no',
+              isNoClicked
+            )} ${
               mobileState.isNoHidden
                 ? 'opacity-0 pointer-events-none cursor-default'
                 : 'cursor-pointer'

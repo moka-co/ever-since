@@ -22,6 +22,7 @@ import { MAX_MEDIA_COUNT, isVideo } from '@/lib/media/validation';
 import {
   getMobileValentineStepState,
   VALENTINE_MAX_NO_TAPS,
+  getValentineButtonContourClasses,
 } from '@/components/valentine-memory';
 import { Skeleton } from '@/components/ui/skeleton';
 import Alert from '../ui/alert';
@@ -77,6 +78,10 @@ export default function MemoriesManager({
   const [noLabel, setNoLabel] = useState(initialForm.noLabel);
   const [noMessagesText, setNoMessagesText] = useState(initialForm.noMessagesText);
   const [previewNoTapCount, setPreviewNoTapCount] = useState(0);
+  const [previewYesClicked, setPreviewYesClicked] = useState(false);
+  const [previewNoClicked, setPreviewNoClicked] = useState(false);
+  const previewYesTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previewNoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Inline media upload state
   const [uploadedInSession, setUploadedInSession] = useState<MediaRecord[]>([]);
@@ -217,6 +222,13 @@ export default function MemoriesManager({
       return () => clearTimeout(timer);
     }
   }, [isSaved]);
+
+  useEffect(() => {
+    return () => {
+      if (previewYesTimeoutRef.current) clearTimeout(previewYesTimeoutRef.current);
+      if (previewNoTimeoutRef.current) clearTimeout(previewNoTimeoutRef.current);
+    };
+  }, []);
 
   const { isUploading: isUploadingMedia, uploadFile } = useMediaUpload({
     onSuccess: (newMedia) => {
@@ -685,25 +697,43 @@ export default function MemoriesManager({
                       <div className="flex items-center justify-center gap-4 min-h-[96px]">
                         <button
                           type="button"
-                          onClick={() => setPreviewNoTapCount(0)}
+                          onClick={() => {
+                            setPreviewYesClicked(true);
+                            if (previewYesTimeoutRef.current) clearTimeout(previewYesTimeoutRef.current);
+                            previewYesTimeoutRef.current = setTimeout(() => {
+                              setPreviewYesClicked(false);
+                            }, 300);
+                            setPreviewNoTapCount(0);
+                          }}
                           style={{
                             transform: `scale(${Math.min(previewState.yesScale, 2.2)})`,
                           }}
-                          className="relative z-10 rounded-full px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-[#F472B6] to-[#FB7185] shadow-[0_4px_16px_rgba(244,114,182,0.4)] transition-transform duration-200"
+                          className={`relative z-10 rounded-full px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-[#F472B6] to-[#FB7185] shadow-[0_4px_16px_rgba(244,114,182,0.4)] transition-all duration-200 border cursor-pointer ${getValentineButtonContourClasses(
+                            'yes',
+                            previewYesClicked
+                          )}`}
                         >
                           {yesLabel.trim() || 'Yes'}
                         </button>
                         {!previewState.isNoHidden && (
                           <button
                             type="button"
-                            onClick={() =>
-                              setPreviewNoTapCount((c) => Math.min(c + 1, VALENTINE_MAX_NO_TAPS))
-                            }
+                            onClick={() => {
+                              setPreviewNoClicked(true);
+                              if (previewNoTimeoutRef.current) clearTimeout(previewNoTimeoutRef.current);
+                              previewNoTimeoutRef.current = setTimeout(() => {
+                                setPreviewNoClicked(false);
+                              }, 300);
+                              setPreviewNoTapCount((c) => Math.min(c + 1, VALENTINE_MAX_NO_TAPS));
+                            }}
                             style={{
                               transform: `scale(${previewState.noScale})`,
                               opacity: previewState.noOpacity,
                             }}
-                            className="rounded-full px-5 py-2 text-xs font-semibold text-[#4B5563] bg-white hover:bg-gray-50 border border-[#F1E8EC] shadow-2xs transition-all duration-200"
+                            className={`rounded-full px-5 py-2 text-xs font-semibold text-[#4B5563] bg-white hover:bg-gray-50 border shadow-2xs transition-all duration-200 cursor-pointer ${getValentineButtonContourClasses(
+                              'no',
+                              previewNoClicked
+                            )}`}
                           >
                             {noLabel.trim() || 'No'}
                           </button>
