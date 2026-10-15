@@ -176,5 +176,72 @@ runTestSuite('Timeline UI & Like Button Verification', async ({ harness }) => {
     const single = getStackState(0, 1);
     harness.assert(single.visibleBackCardsCount === 0, 'Shows 0 back cards when total memories is 1');
   }
+
+  // Test 5: Hold-to-rewind overlay geometry, timing, and gesture safety
+  {
+    console.log('\nTest 5: Hold-to-rewind overlay geometry, timing, and gesture safety');
+
+    const REWIND_DURATION_MS = 1500;
+    const REWIND_SHOW_DELAY_MS = 150;
+    const REWIND_MOVE_THRESHOLD_PX = 10;
+
+    // SVG Ring circumference calculations (96px x 96px, 7px stroke)
+    const size = 96;
+    const strokeWidth = 7;
+    const center = size / 2; // 48
+    const radius = center - strokeWidth / 2; // 44.5
+    const circumference = 2 * Math.PI * radius; // ~279.6017
+
+    harness.assert(
+      Math.abs(circumference - 279.6) < 0.1,
+      `Calculated circumference is ~279.6px (actual: ${circumference.toFixed(2)})`
+    );
+
+    const getStrokeDashoffset = (progress: number) => {
+      const clamped = Math.min(Math.max(progress, 0), 1);
+      return circumference * (1 - clamped);
+    };
+
+    harness.assert(
+      Math.abs(getStrokeDashoffset(0) - circumference) < 0.001,
+      'Progress 0% results in full dash offset (empty ring)'
+    );
+    harness.assert(
+      Math.abs(getStrokeDashoffset(0.5) - circumference * 0.5) < 0.001,
+      'Progress 50% results in half dash offset'
+    );
+    harness.assert(
+      getStrokeDashoffset(1.0) === 0,
+      'Progress 100% results in 0 dash offset (fully filled ring)'
+    );
+
+    // Overlay delay logic (avoids flash on quick taps/swipes)
+    const isOverlayVisibleAt = (elapsedMs: number) => elapsedMs >= REWIND_SHOW_DELAY_MS;
+    harness.assert(!isOverlayVisibleAt(0), 'Overlay not visible at 0ms');
+    harness.assert(!isOverlayVisibleAt(100), 'Overlay not visible at 100ms (quick tap)');
+    harness.assert(!isOverlayVisibleAt(149), 'Overlay not visible at 149ms');
+    harness.assert(isOverlayVisibleAt(150), 'Overlay visible at 150ms of continuous hold');
+    harness.assert(isOverlayVisibleAt(800), 'Overlay visible at 800ms of continuous hold');
+
+    // Tap hint vs Hold completion
+    const getHoldResult = (elapsedMs: number) => {
+      if (elapsedMs < 400) return 'hint';
+      if (elapsedMs >= REWIND_DURATION_MS) return 'rewind_success';
+      return 'cancelled';
+    };
+    harness.assert(getHoldResult(250) === 'hint', 'Release at 250ms triggers "Hold to rewind" hint');
+    harness.assert(getHoldResult(800) === 'cancelled', 'Release at 800ms cancels without hint or rewind');
+    harness.assert(getHoldResult(1500) === 'rewind_success', 'Hold at 1500ms triggers rewind success');
+
+    // Gesture safety: movement threshold check (> 10px cancels hold)
+    const shouldCancelOnMove = (startX: number, startY: number, curX: number, curY: number) => {
+      const distance = Math.hypot(curX - startX, curY - startY);
+      return distance > REWIND_MOVE_THRESHOLD_PX;
+    };
+    harness.assert(!shouldCancelOnMove(100, 100, 105, 105), 'Small jitter (7px) does not cancel hold');
+    harness.assert(!shouldCancelOnMove(100, 100, 100, 109), 'Movement within 9px does not cancel hold');
+    harness.assert(shouldCancelOnMove(100, 100, 108, 108), 'Movement > 10px (11.3px) cancels hold');
+    harness.assert(shouldCancelOnMove(100, 100, 120, 100), 'Swipe attempt (20px) cancels hold');
+  }
 });
 

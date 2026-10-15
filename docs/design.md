@@ -102,11 +102,14 @@
   - Positioned closely above the card (`mb-4` / `mb-5`), utilizing dynamic sliding dots with soft blush tones (`#F1D6DE`) for inactive dots.
   - The active indicator expands into an elongated pill in cool berry rose (**`#D4537E`**), providing crisp visual contrast against the pastel backdrop.
 - **Navigation Controls & Toolbar**:
-  - Compact toolbar centered directly below the card uniting `< Prev`, `↺ Rewind`, and `Next >`:
-    - **Previous (`<`)**: Secondary circular button in milk-white with delicate border and subtle shadow.
-    - **Rewind (`↺`)**: Centered 1.5-second press-and-hold button. When pressed/held, the photo immediately dims with a darkened contrast mask (`bg-black/45`) with reduced luminosity, and the button smoothly lifts upward onto the photo card and enlarges (`scale: 1.4`), featuring an outer circular progress ring and gentle icon rotation so the finger never blocks the interaction feedback. If released early, it returns back down into the toolbar and drops the mask.
-    - **Next (`>`)**: Primary action button styled with an eye-catching peach-pink gradient (`from-[#F472B6] to-[#FB7185]`), white chevron, and glowing rose shadow to establish clear narrative hierarchy.
+  - Compact toolbar centered directly below the card uniting `< Prev`, center action (Like or `↺ Rewind`), and `Next >`:
+    - **Previous (`<`)**: Secondary circular button in milk-white with delicate border and subtle shadow (`disabled` at memory 0).
+    - **Center Action (`Like` or `↺ Rewind`)**:
+      - On the first card of a standard memory (`currentIndex === 0 && !isValentine`), renders an Instagram-style one-time heart Like button.
+      - On subsequent cards or on Special Valentine memories, renders a stationary 1.5-second press-and-hold Rewind button (`↺`). Holding it activates the dedicated `RewindOverlay` modal layer over the card with a 96px circular SVG progress ring and status label, while the button stays in place in the toolbar.
+    - **Next (`>`)**: Primary action button styled with an eye-catching peach-pink gradient (`from-[#F472B6] to-[#FB7185]`), white chevron, and glowing rose shadow (`disabled` on the last memory).
   - Mobile swipe gestures on the card remain supported for natural one-handed browsing.
+  - Controls remain fully visible and interactive on Special Valentine memories as well.
 - **Mobile Swipe Hint & Card Peek Discovery**:
   - **Purpose**: Affordance discovery for touch-device users without cluttering the screen or obstructing romantic memories.
   - **Trigger & Mobile Exclusivity**: Evaluated purely client-side on touch devices (`(hover: none) and (pointer: coarse)` with viewport width `<= 768px`). Displays exclusively on the first memory card after 4 seconds of inactivity, provided there is more than one memory. Desktop browsers render nothing and attach no timers.
@@ -277,5 +280,48 @@
   - `ever-since/app/timeline-client.tsx` (overlay mounting, background card compatibility, and control locking)
   - `ever-since/app/customize/memories-manager.tsx` (type selector, Valentine editor fields, live preview, and timeline list badge)
   - `ever-since/tests/valentine_memory.test.ts` & `ever-since/package.json`
+
+### 5. Hold-to-Rewind Modal Overlay Redesign
+- **Concept & Problem Solved**:
+  - Previously, holding the rewind button animated the toolbar button upward (`y: -120px`), overlapping the bottom photo edge and the card caption, while the `"Rewinding to beginning..."` label lived in a separate isolated photo mask.
+  - Redesigned into a single, cohesive feedback layer (`RewindOverlay`) positioned above the card like a modal overlay.
+  - The bottom toolbar rewind button remains stationary and uncluttered in the navigation footer.
+- **Visual Design Tokens & Final Values**:
+  - **Overlay Container**: Absolute layer covering the entire card area (photo AND caption) with matching corner radii (`rounded-[32px] sm:rounded-[36px] md:rounded-[40px]`) and soft elevation shadow (`shadow-2xl`).
+  - **Dark Scrim & Blur**: `backgroundColor: rgba(0, 0, 0, 0.55)` with `backdrop-filter: blur(6px)` and `-webkit-backdrop-filter: blur(6px)`, dimming and softening the memory content beneath.
+  - **Delayed Appearance**: The overlay appears only after `150ms` (`REWIND_SHOW_DELAY_MS = 150`) of continuous holding, preventing accidental flashes during quick taps or card swipes.
+  - **Progress Ring & Icon**:
+    - Central `96px` x `96px` SVG circular ring with `7px` thick white stroke (`#FFFFFF`, `strokeLinecap="round"`) over a faint white track (`rgba(255, 255, 255, 0.22)`).
+    - Circumference: `~279.6px` (`2 * Math.PI * 44.5`), dynamically filling from 0% to 100% via `requestAnimationFrame` synced to the `1500ms` hold duration (`REWIND_DURATION_MS = 1500`).
+    - White counter-clockwise rewind icon (`30px`) centered inside the ring.
+  - **Label & Contrast**:
+    - Text: `"Rewinding to beginning..."` positioned directly below the ring in bold white (`text-white font-bold text-sm sm:text-base`) with high contrast against the dark scrim (exceeding WCAG AA).
+    - Positioned within the centered overlay group so it never overlaps or touches the card caption beneath.
+  - **Completion Feedback**:
+    - Upon reaching 100%, triggers a short confirmation scale pulse (`scale: [1, 1.12, 1]` over `150ms`) on the ring group.
+    - Triggers haptic feedback via `navigator.vibrate(15)` where supported.
+    - Transitions timeline index to `0` and fades out gracefully.
+- **Gesture Safety & Accessibility**:
+  - **Gesture Isolation**: Overlay uses `pointer-events-none` so active pointer capture on the rewind button is never interrupted.
+  - **Swipe Protection**: Initial pointer coordinates are tracked; if pointer movement exceeds `10px` (`Math.hypot(dx, dy) > 10`), the hold is immediately cancelled and the overlay hidden, preventing gesture conflicts with card swipes.
+  - **Long-press Protection**: Buttons enforce `user-select: none`, `-webkit-user-select: none`, `[-webkit-touch-callout:none]`, `touch-action: none`, and `onContextMenu={(e) => e.preventDefault()}` to avoid unwanted text selection or context menus.
+  - **Reduced Motion**: Fully respects `prefers-reduced-motion` via `useReducedMotion()`; disables pop/scale transitions in favor of gentle opacity fades.
+  - **Screen Readers**: Label includes `role="status"` and `aria-live="polite"` for non-visual assistive tech announcement.
+- **Modified & Created Files**:
+  - `ever-since/components/rewind-overlay.tsx` (new `RewindOverlay` component)
+  - `ever-since/app/timeline-client.tsx` (RAF progress loop, 150ms delay, >10px gesture cancellation, stationary button, and overlay mounting)
+  - `ever-since/tests/timeline_ui.test.ts` (unit tests for ring geometry, timing delays, and gesture safety)
+
+### 6. Special Valentine Interaction Bottom Navigation Controls
+- **Concept & Problem Solved**:
+  - Unresolved Valentine cards previously hid the bottom navigation footer (`opacity-0 pointer-events-none`) and locked navigation until "Yes" was tapped.
+  - Added full bottom controls to the Valentine card stage so users can navigate backward, hold to rewind, or skip forward naturally:
+    - **Previous Button (`<`)**: Always visible; enabled whenever `currentIndex > 0` (disabled at index 0).
+    - **Center Button**: On Valentine cards, always renders the **Rewind** button (instead of the photo-specific "Like" button), enabled whenever `currentIndex > 0`.
+    - **Next Button (`>`)**: Always visible; enabled whenever `currentIndex < memories.length - 1` (disabled on last card).
+- **Modified Files**:
+  - `ever-since/app/timeline-client.tsx` (toolbar visibility and navigation button state mapping for Valentine cards)
+  - `ever-since/tests/valentine_memory.test.ts` (unit test suite verifying Valentine bottom control states at index 0, intermediate cards, and last card)
+
 
 

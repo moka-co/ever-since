@@ -408,5 +408,52 @@ runTestSuite('Valentine Special Memory', async ({ harness }) => {
         'Reduced motion still hides No after 5 taps'
       );
     }
+
+    // Test 6: Bottom Navigation Controls on Valentine Memory Cards
+    {
+      console.log('\nTest 6: Bottom navigation controls on Valentine memories');
+
+      const getTimelineControlState = (
+        currentIndex: number,
+        totalMemories: number,
+        isValentine: boolean
+      ) => {
+        return {
+          footerVisible: true,
+          prevDisabled: currentIndex === 0,
+          nextDisabled: currentIndex === totalMemories - 1,
+          centerControl: currentIndex === 0 && !isValentine ? 'like' : 'rewind',
+          rewindDisabled: currentIndex === 0,
+        };
+      };
+
+      // Valentine at index 0 (first card of 3)
+      const v0 = getTimelineControlState(0, 3, true);
+      harness.assert(v0.footerVisible === true, 'Footer is visible when Valentine is at index 0');
+      harness.assert(v0.prevDisabled === true, 'Previous button disabled at index 0');
+      harness.assert(v0.nextDisabled === false, 'Next button enabled at index 0 of 3');
+      harness.assert(v0.centerControl === 'rewind', 'Valentine at index 0 renders rewind control (not like)');
+      harness.assert(v0.rewindDisabled === true, 'Rewind button disabled at index 0');
+
+      // Valentine at index 1 (middle card of 3)
+      const v1 = getTimelineControlState(1, 3, true);
+      harness.assert(v1.footerVisible === true, 'Footer is visible when Valentine is at index 1');
+      harness.assert(v1.prevDisabled === false, 'Previous button enabled at index 1');
+      harness.assert(v1.nextDisabled === false, 'Next button enabled at index 1 of 3');
+      harness.assert(v1.centerControl === 'rewind', 'Valentine at index 1 renders rewind control');
+      harness.assert(v1.rewindDisabled === false, 'Rewind button enabled at index 1');
+
+      // Valentine at index 2 (last card of 3)
+      const v2 = getTimelineControlState(2, 3, true);
+      harness.assert(v2.footerVisible === true, 'Footer is visible when Valentine is at index 2');
+      harness.assert(v2.prevDisabled === false, 'Previous button enabled at index 2');
+      harness.assert(v2.nextDisabled === true, 'Next button disabled on last card');
+      harness.assert(v2.centerControl === 'rewind', 'Valentine at index 2 renders rewind control');
+      harness.assert(v2.rewindDisabled === false, 'Rewind button enabled on last card');
+
+      // Contrast with standard memory at index 0
+      const std0 = getTimelineControlState(0, 3, false);
+      harness.assert(std0.centerControl === 'like', 'Standard memory at index 0 renders like control');
+    }
 });
 

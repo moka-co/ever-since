@@ -11,6 +11,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSwipeHint, shouldPlayCardPeek } from "@/lib/hooks/use-swipe-hint";
 import SwipeHint from "@/components/swipe-hint";
 import ValentineMemory from "@/components/valentine-memory";
+import { RewindOverlay } from "@/components/rewind-overlay";
+
+const REWIND_DURATION_MS = 1500;
+const REWIND_SHOW_DELAY_MS = 150;
+const REWIND_MOVE_THRESHOLD_PX = 10;
 
 interface TimelineClientProps {
   memories: MemoryRecord[];
@@ -22,6 +27,9 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
   const [direction, setDirection] = useState<1 | -1>(1);
   const [loadedIndices, setLoadedIndices] = useState<Set<number>>(new Set());
   const [isRewinding, setIsRewinding] = useState(false);
+  const [rewindProgress, setRewindProgress] = useState(0);
+  const [isRewindOverlayVisible, setIsRewindOverlayVisible] = useState(false);
+  const [isRewindCompleted, setIsRewindCompleted] = useState(false);
   const [showRewindHint, setShowRewindHint] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
@@ -29,6 +37,9 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
   const videoRef = useRef<HTMLVideoElement>(null);
   const rewindTimeout = useRef<NodeJS.Timeout | null>(null);
   const rewindHintTimeout = useRef<NodeJS.Timeout | null>(null);
+  const rewindCompleteTimeout = useRef<NodeJS.Timeout | null>(null);
+  const rewindRafId = useRef<number | null>(null);
+  const initialPointerPos = useRef<{ x: number; y: number } | null>(null);
   const pointerDownTime = useRef<number>(0);
   const shouldReduceMotion = useReducedMotion();
   const isFirstCardUnresolvedValentine =
@@ -162,32 +173,97 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
     }
   };
 
+  const cancelRewind = () => {
+    if (rewindRafId.current !== null) {
+      cancelAnimationFrame(rewindRafId.current);
+      rewindRafId.current = null;
+    }
+    if (rewindTimeout.current) {
+      clearTimeout(rewindTimeout.current);
+      rewindTimeout.current = null;
+    }
+    if (rewindCompleteTimeout.current) {
+      clearTimeout(rewindCompleteTimeout.current);
+      rewindCompleteTimeout.current = null;
+    }
+    setIsRewinding(false);
+    setIsRewindOverlayVisible(false);
+    setRewindProgress(0);
+    setIsRewindCompleted(false);
+    initialPointerPos.current = null;
+  };
+
+  useEffect(() => {
+    return () => {
+      if (rewindRafId.current !== null) cancelAnimationFrame(rewindRafId.current);
+      if (rewindTimeout.current) clearTimeout(rewindTimeout.current);
+      if (rewindCompleteTimeout.current) clearTimeout(rewindCompleteTimeout.current);
+      if (rewindHintTimeout.current) clearTimeout(rewindHintTimeout.current);
+    };
+  }, []);
+
   const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     pointerDownTime.current = Date.now();
+    initialPointerPos.current = { x: e.clientX, y: e.clientY };
     setIsRewinding(true);
-    rewindTimeout.current = setTimeout(() => {
-      setIsPlaying(false);
-      setDirection(-1);
-      setCurrentIndex(0);
-      setIsRewinding(false);
-      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-        try {
-          navigator.vibrate(30);
-        } catch {}
+    setIsRewindCompleted(false);
+    setRewindProgress(0);
+
+    const startTime = Date.now();
+
+    const tick = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / REWIND_DURATION_MS, 1);
+      setRewindProgress(progress);
+
+      if (elapsed >= REWIND_SHOW_DELAY_MS) {
+        setIsRewindOverlayVisible(true);
       }
-    }, 1500);
+
+      if (elapsed >= REWIND_DURATION_MS) {
+        setIsRewindCompleted(true);
+        if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+          try {
+            navigator.vibrate(15);
+          } catch {}
+        }
+        rewindCompleteTimeout.current = setTimeout(() => {
+          setIsPlaying(false);
+          setDirection(-1);
+          setCurrentIndex(0);
+          cancelRewind();
+        }, 150);
+        return;
+      }
+
+      rewindRafId.current = requestAnimationFrame(tick);
+    };
+
+    rewindRafId.current = requestAnimationFrame(tick);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!initialPointerPos.current) return;
+    const dx = e.clientX - initialPointerPos.current.x;
+    const dy = e.clientY - initialPointerPos.current.y;
+    if (Math.hypot(dx, dy) > REWIND_MOVE_THRESHOLD_PX) {
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {}
+      cancelRewind();
+    }
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {}
-    if (rewindTimeout.current) clearTimeout(rewindTimeout.current);
-    setIsRewinding(false);
+
+    const elapsed = Date.now() - pointerDownTime.current;
+    cancelRewind();
 
     // If pointer was held for less than 400ms, user tapped instead of holding -> display hint
-    const elapsed = Date.now() - pointerDownTime.current;
     if (elapsed > 0 && elapsed < 400 && currentIndex > 0) {
       setShowRewindHint(true);
       if (rewindHintTimeout.current) clearTimeout(rewindHintTimeout.current);
@@ -199,8 +275,6 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
 
   const activeMemory = memories[currentIndex];
   const isValentine = activeMemory?.type === "valentine";
-  const isUnresolvedValentine =
-    isValentine && activeMemory ? !resolvedValentineIds.has(activeMemory.id) : false;
   const activeMedia = activeMemory?.mediaId ? media.find((m) => m.id === activeMemory.mediaId) : null;
   const remainingCards = Math.max(0, memories.length - 1 - currentIndex);
   const showBackCard1 = !isValentine && remainingCards >= 1;
@@ -435,29 +509,6 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
                   <div className="text-muted text-sm px-4 text-center">No media available</div>
                 )}
 
-                {/* Rewind Darkening Mask & Luminosity Reduction */}
-                <AnimatePresence>
-                  {isRewinding && (
-                    <motion.div
-                      key="rewind-mask"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute inset-0 bg-black/45 backdrop-blur-[1px] flex flex-col items-center justify-center pointer-events-none z-20"
-                    >
-                      <motion.span
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 4 }}
-                        transition={{ duration: 0.2, delay: 0.1 }}
-                        className="text-white/90 text-xs font-semibold px-3.5 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/15 tracking-wide shadow-sm"
-                      >
-                        Rewinding to beginning...
-                      </motion.span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </figure>
 
               {/* Integrated caption inside the card */}
@@ -496,34 +547,38 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
               <SwipeHint isReducedMotion={shouldReduceMotion} />
             )}
           </AnimatePresence>
+
+          {/* Hold-to-Rewind Overlay (covers photo & caption with 96px progress ring) */}
+          <RewindOverlay
+            progress={rewindProgress}
+            visible={isRewindOverlayVisible}
+            isCompleted={isRewindCompleted}
+          />
         </div>
 
       {/* Unified control toolbar directly below the card */}
       <footer
         aria-label="Timeline navigation controls"
-        aria-hidden={isUnresolvedValentine ? "true" : undefined}
-        className={`flex items-center justify-center gap-4 mt-6 z-10 transition-opacity duration-200 ${
-          isUnresolvedValentine ? "opacity-0 pointer-events-none" : "opacity-100"
-        }`}
+        className="flex items-center justify-center gap-4 mt-6 z-10 transition-opacity duration-200 opacity-100"
       >
         {/* Previous Button */}
         <button
           type="button"
           aria-label="Previous memory"
           onClick={handlePrev}
-          disabled={currentIndex === 0 || isUnresolvedValentine}
+          disabled={currentIndex === 0}
           className="w-12 h-12 rounded-full bg-white hover:bg-gray-50 text-[#4B5563] hover:text-foreground border border-[#F1E8EC] shadow-sm flex items-center justify-center transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
         </button>
 
-        {/* First card: Like Button | Other cards: Rewind Button */}
-        {currentIndex === 0 ? (
+        {/* First card on standard memory: Like Button | Valentine memory or subsequent cards: Rewind Button */}
+        {currentIndex === 0 && !isValentine ? (
           <button
             type="button"
             aria-label={isLiked ? "Liked" : "Like"}
             aria-pressed={isLiked}
-            disabled={isLiked || isUnresolvedValentine}
+            disabled={isLiked}
             onClick={handleLike}
             className="w-12 h-12 rounded-full bg-white hover:bg-gray-50 border border-[#F1E8EC] shadow-sm flex items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta select-none disabled:opacity-100 disabled:pointer-events-none disabled:hover:bg-white"
           >
@@ -560,101 +615,43 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
             )}
           </button>
         ) : (
-          <div className="relative w-12 h-12 flex items-center justify-center">
-            {/* Slot placeholder so toolbar buttons do not shift when rewind lifts */}
-            <div className="w-12 h-12 rounded-full border border-dashed border-[#F1E8EC] opacity-40 pointer-events-none" />
-
-            {/* Lifting & Enlarging Rewind Button */}
-            <motion.div
-              layout
-              animate={{
-                y: isRewinding ? -120 : 0,
-                scale: isRewinding ? 1.4 : 1,
-                boxShadow: isRewinding
-                  ? '0 20px 35px -5px rgba(212, 83, 126, 0.4), 0 0 0 4px rgba(255, 255, 255, 0.85)'
-                  : '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-              }}
-              transition={{
-                type: 'spring',
-                stiffness: 400,
-                damping: 25,
-                mass: 0.8,
-              }}
-              className="absolute w-12 h-12 rounded-full bg-white border border-[#F1E8EC] flex items-center justify-center z-30 select-none cursor-pointer"
+          <button
+            type="button"
+            aria-label="Rewind to beginning"
+            disabled={currentIndex === 0}
+            onPointerDown={currentIndex === 0 ? undefined : handlePointerDown}
+            onPointerUp={currentIndex === 0 ? undefined : handlePointerUp}
+            onPointerCancel={currentIndex === 0 ? undefined : handlePointerUp}
+            onPointerLeave={currentIndex === 0 ? undefined : handlePointerUp}
+            onPointerMove={currentIndex === 0 ? undefined : handlePointerMove}
+            onContextMenu={(e) => e.preventDefault()}
+            style={{ touchAction: 'none' }}
+            className={`w-12 h-12 rounded-full bg-white hover:bg-gray-50 border border-[#F1E8EC] shadow-sm flex items-center justify-center transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta select-none [-webkit-touch-callout:none] ${
+              currentIndex === 0
+                ? 'opacity-30 cursor-not-allowed'
+                : isRewinding
+                ? 'scale-95 text-[#D4537E] border-[#D4537E] shadow-[0_0_0_3px_rgba(212,83,126,0.2)]'
+                : 'text-[#6B7280] hover:text-foreground cursor-pointer'
+            }`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              className={isRewinding ? 'animate-spin-slow' : ''}
             >
-              {/* Outer circular progress ring indicator */}
-              <svg
-                className="absolute -inset-1.5 w-[60px] h-[60px] -rotate-90 pointer-events-none"
-                viewBox="0 0 60 60"
-              >
-                <circle
-                  cx="30"
-                  cy="30"
-                  r="26"
-                  fill="none"
-                  stroke={isRewinding ? 'rgba(255, 255, 255, 0.3)' : 'transparent'}
-                  strokeWidth="3.5"
-                />
-                <motion.circle
-                  cx="30"
-                  cy="30"
-                  r="26"
-                  fill="none"
-                  stroke="#D4537E"
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
-                  strokeDasharray={163.36}
-                  initial={{ strokeDashoffset: 163.36 }}
-                  animate={{ strokeDashoffset: isRewinding ? 0 : 163.36 }}
-                  transition={{
-                    duration: isRewinding ? 1.5 : 0.2,
-                    ease: 'linear',
-                  }}
-                />
-              </svg>
-
-              {/* Internal subtle radial fill */}
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-tr from-[#D4537E] to-[#FB7185] rounded-full origin-center"
-                initial={{ scale: 0 }}
-                animate={{ scale: isRewinding ? 1 : 0 }}
-                transition={{ duration: isRewinding ? 1.5 : 0.2, ease: "linear" }}
-              />
-
-              <button
-                type="button"
-                aria-label="Rewind to beginning"
-                disabled={isUnresolvedValentine}
-                onPointerDown={isUnresolvedValentine ? undefined : handlePointerDown}
-                onPointerUp={isUnresolvedValentine ? undefined : handlePointerUp}
-                onPointerCancel={isUnresolvedValentine ? undefined : handlePointerUp}
-                onPointerLeave={isUnresolvedValentine ? undefined : handlePointerUp}
-                onContextMenu={(e) => e.preventDefault()}
-                style={{ touchAction: 'none' }}
-                className={`relative z-10 w-full h-full flex items-center justify-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta rounded-full select-none ${
-                  isRewinding ? 'text-white' : 'text-[#6B7280] hover:text-foreground'
-                }`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                  className={isRewinding ? 'animate-spin-slow' : ''}
-                >
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                </svg>
-                <span className="sr-only">Rewind</span>
-              </button>
-            </motion.div>
-          </div>
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+            <span className="sr-only">Rewind</span>
+          </button>
         )}
 
         {/* Next Button - Primary Action */}
@@ -662,7 +659,7 @@ export default function TimelineClient({ memories, media }: TimelineClientProps)
           type="button"
           aria-label="Next memory"
           onClick={handleNext}
-          disabled={currentIndex === memories.length - 1 || isUnresolvedValentine}
+          disabled={currentIndex === memories.length - 1}
           className="w-12 h-12 rounded-full bg-gradient-to-r from-[#F472B6] to-[#FB7185] hover:from-[#EC4899] hover:to-[#F43F5E] text-white shadow-[0_4px_16px_rgba(244,114,182,0.4)] hover:shadow-[0_6px_20px_rgba(244,114,182,0.55)] flex items-center justify-center transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta disabled:opacity-40 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 disabled:shadow-none disabled:cursor-not-allowed hover:scale-105 active:scale-95 disabled:hover:scale-100"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
