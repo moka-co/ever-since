@@ -3,7 +3,7 @@
 
 You can see a demo of the user experience from mobile there: [demo](docs/assets/eversince_demo.mp4)
 
-![demo](docs/assets/eversince_demo.mp4)
+https://github.com/user-attachments/assets/2d5beaef-9a0f-4ae8-bd67-a57aa10e5f66
 
 
 ## Getting Started
