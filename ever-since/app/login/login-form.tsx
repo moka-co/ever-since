@@ -355,7 +355,6 @@ export default function LoginForm({ initialAuthenticated, sealMedia }: LoginForm
                 onPaste={handleDatePaste}
                 disabled={isVerifyingDate}
                 className="w-14 h-12 text-center rounded-2xl border border-[#F1E8EC] bg-[#FAF7F8] text-base font-semibold text-foreground focus:border-cta focus:bg-white focus:outline-none focus:ring-1 focus:ring-cta transition-colors disabled:opacity-50"
-                autoFocus
                 required
               />
               <span className="text-muted/60 font-light text-lg">/</span>
